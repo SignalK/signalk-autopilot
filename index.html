@@ -1,0 +1,98 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1">
+    <script src="./js/scale2fit.js"></script>
+    <script src="./js/rayremote.js"></script>
+    <title>SignalK RayRemote</title>
+    <link href="./css/rayremote.css" rel="stylesheet">
+    <script>
+      (function(window) {
+        function main() {
+          const margin = 20;
+          requestAnimationFrame(function fitToParentOnResize() {
+            fitToParent(document.getElementById('remoteBig'), margin);
+          });
+        }
+        window.addEventListener("DOMContentLoaded", main);
+        window.addEventListener("resize", main);
+      })(this);
+      // iOS CSS :active
+      document.addEventListener("touchstart", function() {},false);
+    </script>
+  </head>
+  <body onload="startUpRayRemote()">
+  <div id="main">
+    <div class="bgRemoteBig" id="remoteBig">
+      <div id="logoSignalK"></div>
+      <div id="logoText">Ray Remote</div>
+      <div id="topBarIcon">
+        <div class="icon18x18" id="notificationCounter">
+          <div id="notificationCounterText">88</div>
+        </div>
+        <div class="icon18x18" id="countDownCounter">8</div>
+        <div class="icon18x18" id="errorIcon"></div>
+        <div class="icon18x18" id="receiveIcon"></div>
+        <div class="icon18x18" id="sendIcon"></div>
+        <div class="icon18x18" id="powerOffIcon"></div>
+        <div class="icon18x18" id="powerOnIcon"></div>
+      </div>
+      <div id="bottomBarIcon">&nbsp;Loading Ray Remote...</div>
+      <div id="headingValue"></div>
+      <div id="pilotStatus"></div>
+      <div class="messageScreen" id="silenceScreen">
+        <div id="silenceScreenText"></div>
+        <div id="silenceScreenMute">&nbsp;Mute alarm press:</div>
+        <div id="silenceScreenScroll">&nbsp;Next alarm press:</div>
+      </div>
+      <div class="messageScreen" id="tackScreen"></div>
+      <div class="defaultKey btnLeftBlack" id="keyTackPort" onClick="buildAndSendCommand('tackToPort');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyTackPortText"></div>
+      </div>
+      <div class="defaultKey btnRightBlack" id="keyTackStarbord" onClick="buildAndSendCommand('tackToStarboard');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyTackStarbordText"></div>
+      </div>
+      <div class="defaultTextFontKey" id="tackLabel">: TACK :</div>
+      <div class="defaultKey btnBottomSmallBlack" id="keyMute" onClick="sendSilence();" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyMuteText"></div>
+      </div>
+      <div class="defaultKey btnBottomSmallBlack" id="keyScroll" onClick="notificationScroll();" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyScrollText"></div>
+      </div>
+      <div class="defaultKey btnLeftBlack" id="keyMinusOne" onClick="buildAndSendCommand('-1');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyMinusOneText">-1</div>
+      </div>
+      <div class="defaultKey btnLeftBlack" id="keyMinusTen" onClick="buildAndSendCommand('-10');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyMinusTenText">-10</div>
+      </div>
+      <div class="defaultKey btnRightBlack" id="keyPlusTen" onClick="buildAndSendCommand('+10');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyPlusTenText">+10</div>
+      </div>
+      <div class="defaultKey btnRightBlack" id="keyPlusOne" onClick="buildAndSendCommand('+1');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyPlusOneText">+1</div>
+      </div>
+      <div class="defaultKey btnCircleRed" id="keyAuto" onClick="buildAndSendCommand('auto');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyAutoText">AUTO</div>
+      </div>
+      <div class="defaultKey btnCircleRed" id="keyWind" onClick="buildAndSendCommand('wind');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyWindText">WIND</div>
+      </div>
+      <div class="defaultKey btnCircleRed" id="keyTrack" onClick="buildAndSendCommand('route');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyTrackText">TRACK</div>
+      </div>
+      <div class="defaultKey btnCircleWithDotRed" id="keyStandby" onClick="buildAndSendCommand('standby');" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyStandbyText">STANDBY</div>
+      </div>
+<!--
+      <div class="defaultKey btnBottomSmallBlack" id="keyHelp" onClick="displayHelp();" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyHelpText"></div>
+      </div>
+-->
+      <div class="defaultKey btnBottomSmallBlack" id="keyPower" onClick="wsOpenClose();" onTouchend="touchEnd(event)">
+        <div class="defaultTextFontKey" id="keyPowerText"></div>
+      </div>
+    </div>
+  </div>
+  </body>
+</html>
