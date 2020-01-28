@@ -1,30 +1,47 @@
-# signalk-raymarine-autopilot
+# signalk-autopilot
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/sbender9/signalk-raymarine-autopilot.svg)](https://greenkeeper.io/)
+[![Greenkeeper badge](https://badges.greenkeeper.io/sbender9/signalk-autopilot.svg)](https://greenkeeper.io/)
 
 <p align="center"><img src="./small-rayremote.png"></p>
 
-`signalk-raymarine-autopilot` signal is composed of 2 modules: 
+`signalk-autopilot` is composed of 2 modules: 
 - [A graphical interface that emulates a Raymarine remote control](./GUI-help.md "GUI help")
 - A back-end API described below.
 
+This current only supports Raymarine NMEA 2000 Autopilots, but I'll be adding support for other autopilots as needed.
+
 # API
 
-All messages to plugin are done as POST requests which take a map as input in the form:
+All messages to plugin are done using PUT requests. These can be done via HTTP or over WebSockets.
 
-```json
+Http:
+
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/target/headingMagnetic
 {
-  "action": "someAction",
-  "value": 10
+  "value": 1.52,
 }
 ```
 
-The POST should be sent to `/plugins/raymarineautopilot/command`
+Delta:
+
+```
+{
+  "context": "vessels.self",
+  "correlationId": "184743-434373-348483",
+  "put": {
+    "path": "steering.autopilot.target.headingMagnetic",
+    "value": 1.52
+  }
+}
+```
+
 
 ## Advance Waypoint
-```json
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/actions/advanceWaypoint
 {
-  "action": "advanceWaypoint"
+  "value": 1,
 }
 ```
 
@@ -32,10 +49,10 @@ The POST should be sent to `/plugins/raymarineautopilot/command`
 
 The `value` can be `auto`, `wind`, `route`, or `standby`
 
-```json
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/state
 {
-  "action": "setState",
-  "value": "auto"
+  "value": "auto",
 }
 ```
 
@@ -43,23 +60,10 @@ The `value` can be `auto`, `wind`, `route`, or `standby`
 
 The `value` is in degrees and is the amount to change. So when in `auto` at a heading of 180, a value of `-10` will change the target heading would be changed to `170`
 
-```json
-{
-  "action": "changeHeading",
-  "value": 1
-}
 ```
-
-## Change Target Heading or Wind Angle by key
-
-The `value` is a direct key (`+1`, `+10`, `-1`, `-10`, `-1-10`, `+1+10`). 
-The key `+1` add +1 degree to heading, `+10` add +10 degree... 
-The special key `-1-10` and `+1+10` is dedicated to take a tack to port or starbord.
-
-```json
+PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/actions/adjustHeading
 {
-  "action": "changeHeadingByKey",
-  "value": "+1"
+  "value": -10,
 }
 ```
 
@@ -68,41 +72,33 @@ The special key `-1-10` and `+1+10` is dedicated to take a tack to port or starb
 The `value` is `port` or `starboard`. 
 This command must be send only when your pilot is in `auto` or `wind` mode.
 
-```json
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/actions/tack
 {
-  "action": "tackTo",
-  "value": "port"
+  "value": "port",
 }
 ```
 
-## Silence alarm
+## Target Heading
 
-This command silence a Raymarine alarms. 
-You can silence alarm directly by the numeric code or by a `signal k` notification path. 
-This command does not silence a `signal k` notification. 
-It is your Raymarine equipment that receives the acknowledgement command 
-and returns a new notification status on the NMEA2000 bus with the `normal` state value. 
-See the code in `index.js` for the complete list of `raymarineAlarmGroupCodes` and `alarmsId` keys / values. 
- 
-In acknowledgement by the numeric code, the `value` is : 
+The `value` is the heading in radians.
 
-```json
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/target/headingMagnetic
 {
-  "action": "silenceAlarm",
-  "value": {
-    "groupId": "0x01",
-    "alarmId": "0x47"
-  }
+  "value": 1.52,
 }
 ```
 
-In acknowledgement by `signal k` notification path, the `value` is the path you receive in your websocket : 
+## Target Wind Angle
 
-```json
+The `value` is the wind angle in radians.
+
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/target/windAngleApparent
 {
-  "action": "silenceAlarm",
-  "value": {
-    "signalkPath": "notifications.autopilot.PilotWarningWindShift"
-  }
+  "value": 1.52,
 }
 ```
+
+
