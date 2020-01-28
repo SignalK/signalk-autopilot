@@ -4,9 +4,9 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="initial-scale=1">
     <script src="./js/scale2fit.js"></script>
-    <script src="./js/rayremote.js"></script>
-    <title>SignalK RayRemote</title>
-    <link href="./css/rayremote.css" rel="stylesheet">
+    <script src="./js/signalk-autopilot.js"></script>
+    <title>Signal K Autopilot</title>
+    <link href="./css/signalk-autopilot.css" rel="stylesheet">
     <script>
       (function(window) {
         function main() {
@@ -22,31 +22,32 @@
       document.addEventListener("touchstart", function() {},false);
     </script>
   </head>
-  <body onload="startUpRayRemote()">
+  <body onload="startUpAutoPilot()">
   <div id="main">
     <div class="bgRemoteBig" id="remoteBig">
       <div id="logoSignalK"></div>
-      <div id="logoText">Ray Remote</div>
+      <div id="logoText">Auto Pilot</div>
       <div id="topBarIcon">
         <div class="icon18x18" id="notificationCounter">
           <div id="notificationCounterText">88</div>
         </div>
-        <div class="icon18x18" id="countDownCounter">8</div>
+        <div class="icon18x18" id="countDownCounter">5</div>
+        <div class="icon18x18" id="typeValIcon"></div>
         <div class="icon18x18" id="errorIcon"></div>
         <div class="icon18x18" id="receiveIcon"></div>
         <div class="icon18x18" id="sendIcon"></div>
         <div class="icon18x18" id="powerOffIcon"></div>
         <div class="icon18x18" id="powerOnIcon"></div>
       </div>
-      <div id="bottomBarIcon">&nbsp;Loading Ray Remote...</div>
-      <div id="headingValue"></div>
-      <div id="pilotStatus"></div>
+      <div id="bottomBarIcon">&nbsp;Loading Auto Pilot...</div>
+      <div id="headingValue" onClick="changePreferedDisplayMode();"></div>
+      <div id="pilotStatus" onClick="changePreferedDisplayMode();"></div>
       <div class="messageScreen" id="silenceScreen">
         <div id="silenceScreenText"></div>
         <div id="silenceScreenMute">&nbsp;Mute alarm press:</div>
         <div id="silenceScreenScroll">&nbsp;Next alarm press:</div>
       </div>
-      <div class="messageScreen" id="tackScreen"></div>
+      <div class="messageScreen" id="confirmScreen"></div>
       <div class="defaultKey btnLeftBlack" id="keyTackPort" onClick="buildAndSendCommand('tackToPort');" onTouchend="touchEnd(event)">
         <div class="defaultTextFontKey" id="keyTackPortText"></div>
       </div>
