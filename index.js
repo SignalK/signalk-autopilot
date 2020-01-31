@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-const util = require('util')
+const _ = require('lodash')
 
 const target_heading_path = "steering.autopilot.target.headingMagnetic"
 const target_wind_path = "steering.autopilot.target.windAngleApparent"
@@ -33,92 +33,95 @@ module.exports = function(app) {
   var plugin = {}
   var onStop = []
   var autopilot
-  
+  var pilots = {}
+
+  _.keys(types).forEach( type => {
+    const module = types[type]
+    if ( module ) {
+      pilots[type] = module(app)
+    }
+  })
+
   plugin.start = function(props) {
 
-    autopilot = types[props.type](app)
+    autopilot = pilots[props.type]
     autopilot.start(props)
     
-    if ( app.registerActionHandler ) {
-      onStop.push(app.registerActionHandler('vessels.self',
-                                            state_path,
-                                            autopilot.putState))
-      
-      onStop.push(app.registerActionHandler('vessels.self',
-                                            target_heading_path,
-                                            autopilot.putTargetHeading))
-      
-      onStop.push(app.registerActionHandler('vessels.self',
-                                            target_wind_path,
-                                            autopilot.putTargetWind))
-
-      onStop.push(app.registerActionHandler('vessels.self',
-                                            adjust_heading,
-                                            autopilot.putAdjustHeading))
-      
-      onStop.push(app.registerActionHandler('vessels.self',
-                                            tack,
-                                            autopilot.putTack))
-
-      onStop.push(app.registerActionHandler('vessels.self',
-                                            advance,
-                                            autopilot.putAdvanceWaypoint))
-    }
-  };
+    app.registerPutHandler('vessels.self',
+                           state_path,
+                           autopilot.putState)
+    
+    app.registerPutHandler('vessels.self',
+                           target_heading_path,
+                           autopilot.putTargetHeading)
+    
+    app.registerPutHandler('vessels.self',
+                           target_wind_path,
+                           autopilot.putTargetWind)
+    
+    app.registerPutHandler('vessels.self',
+                           adjust_heading,
+                           autopilot.putAdjustHeading)
+    
+    app.registerPutHandler('vessels.self',
+                           tack,
+                           autopilot.putTack)
+    
+    app.registerPutHandler('vessels.self',
+                           advance,
+                           autopilot.putAdvanceWaypoint)
+  }
 
   plugin.stop = function() {
     onStop.forEach(f => f());
     onStop = []
-    autopilot.stop()
+    if ( autopilot ) {
+      autopilot.stop()
+    }
   }
   
   plugin.id = "autopilot"
   plugin.name = "Autopilot Control"
   plugin.description = "Plugin that controls an autopilot"
 
-  plugin.schema = {
-    title: "Autopilot Control",
-    type: "object",
-    properties: {
-      type: {
-        type: 'string',
-        title: 'Autopilot Type',
-        enum: [
-          'raymarineN2K',
-          /*
-          'raymarineST',
-          'nmea2000',
-          'nmea0183'
-          */
-        ],
-        enumNames: [
-          'Raymarine NMEA2000',
-          /*
-          'Raymarine Seatalk 1',
-          'Generic NMEA2000',
-          'NMEA 0183'
-          */
-        ],
-        default: 'raymarineN2K'
-      },
-      deviceid: {
-        type: "string",
-        title: "Autopilot NMEA2000 ID",
-        default: '204'
-      },
-      controlHead: {
-        type: 'boolean',
-        title: 'Act as the Raymarine p70 control head (WARNING: unknown consequences)',
-        default: false
-      },
-      nmea0183Event: {
-        type: 'string',
-        title: 'NMEA 0183 Server Event',
-        default: 'nmea0183out'
+  plugin.schema = function() {
+    let config = {
+      title: "Autopilot Control",
+      type: "object",
+      properties: {
+        type: {
+          type: 'string',
+          title: 'Autopilot Type',
+          enum: [
+            'raymarineN2K',
+            /*
+              'raymarineST',
+              'nmea2000',
+              'nmea0183'
+            */
+          ],
+          enumNames: [
+            'Raymarine NMEA2000',
+            /*
+              'Raymarine Seatalk 1',
+              'Generic NMEA2000',
+              'NMEA 0183'
+            */
+          ],
+          default: 'raymarineN2K'
+        }
       }
     }
-  }
 
+    _.values(pilots).forEach(ap => {
+      if ( ap ) {
+        config.properties  = { ...ap.properties(), ...config.properties }
+      }
+    })
+
+    return config
+  }
+  
   return plugin;
 }
 

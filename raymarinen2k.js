@@ -15,6 +15,7 @@
  */
 
 const util = require('util')
+const _ = require('lodash')
 
 const state_path = "steering.autopilot.state.value"
 
@@ -54,6 +55,7 @@ module.exports = function(app) {
   var deviceid
   var pilot = {}
   var timers = []
+  var discovered
 
   pilot.start = (props) => {
     deviceid = props.deviceid
@@ -86,7 +88,7 @@ module.exports = function(app) {
   }
 
   pilot.putTargetHeading = (context, path, value, cb) => {
-    var state = app.getSelfPath(state_path + '.value')
+    var state = app.getSelfPath(state_path)
 
     if ( state !== 'auto' ) {
       return { message: 'Autopilot not in auto mode', ...FAILURE_RES }
@@ -112,7 +114,7 @@ module.exports = function(app) {
   }
 
   pilot.putTargetWind = (context, path, value, cb)  => {
-    var state = app.getSelfPath(state_path + '.value')
+    var state = app.getSelfPath(state_path)
 
     if ( state !== 'wind' ) {
       return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
@@ -127,7 +129,7 @@ module.exports = function(app) {
   }
 
   pilot.putAdjustHeading = (context, path, value, cb)  => {
-    var state = app.getSelfPath(state_path + '.value')
+    var state = app.getSelfPath(state_path)
 
     if ( state !== 'auto' ) {
       return { message: 'Autopilot not in auto mode', ...FAILURE_RES }
@@ -155,7 +157,7 @@ module.exports = function(app) {
   }
 
   pilot.putTack = (context, path, value, cb)  => {
-    var state = app.getSelfPath(state_path + '.value')
+    var state = app.getSelfPath(state_path)
     
     if ( state !== 'wind' ) {
       return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
@@ -166,9 +168,9 @@ module.exports = function(app) {
   }
 
   pilot.putAdvanceWaypoint = (context, path, value, cb)  => {
-    var state = app.getSelfPath(state_path + '.value')
+    var state = app.getSelfPath(state_path)
     
-    if ( state !== 'track' ) {
+    if ( state !== 'route' ) {
       return { message: 'Autopilot not in track mode', ...FAILURE_RES }
     } else {
       sendN2k(advanceWaypoint(app, deviceid))
@@ -181,6 +183,46 @@ module.exports = function(app) {
     {
       sendCommand(app, deviceid, req.body)
       res.send("Executed command")
+    }
+  }
+
+  pilot.properties = () => {
+    let defaultId = '205'
+    let description = 'No EV-1 Found'
+
+    if ( !discovered ) {
+      //const sources = app.getPath('/sources')
+      let full = app.deltaCache.buildFull(undefined, [ 'sources' ])
+      if ( full && full.sources ) {
+        _.values(full.sources).forEach(v => {
+          if ( typeof v === 'object' ) {
+            _.keys(v).forEach(id => {
+              if ( v[id].n2k && v[id].n2k.hardwareVersion && v[id].n2k.hardwareVersion.startsWith('Raymarine EV-1 Course Computer') ) {
+                discovered = id
+              }
+            })
+          }
+        })
+      }
+    }
+
+    if ( discovered ) {
+      defaultId = discovered
+      description = `Discovered an EV-1 with id ${discovered}`
+    }
+      
+    return {
+      deviceid: {
+        type: "string",
+        title: "Raymarine NMEA2000 ID",
+        description,
+        default: defaultId
+      },
+      controlHead: {
+        type: 'boolean',
+        title: 'Act as the Raymarine p70 control head (WARNING: unknown consequences)',
+        default: false
+      }
     }
   }
 
