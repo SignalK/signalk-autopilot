@@ -1,7 +1,5 @@
 # signalk-autopilot
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/sbender9/signalk-autopilot.svg)](https://greenkeeper.io/)
-
 <p align="center"><img src="./small-rayremote.png"></p>
 
 `signalk-autopilot` is composed of 2 modules: 
@@ -13,6 +11,8 @@ This current only supports Raymarine NMEA 2000 Autopilots, but I'll be adding su
 # API
 
 All messages to plugin are done using PUT requests. These can be done via HTTP or over WebSockets.
+
+Detailed info on [PUT](https://signalk.org/specification/1.3.0/doc/put.html) and [Request/Response](https://signalk.org/specification/1.3.0/doc/request_response.html)
 
 Http:
 
@@ -28,7 +28,7 @@ Delta:
 ```
 {
   "context": "vessels.self",
-  "correlationId": "184743-434373-348483",
+  "requestId": "184743-434373-348483",
   "put": {
     "path": "steering.autopilot.target.headingMagnetic",
     "value": 1.52
@@ -67,10 +67,9 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/actions
 }
 ```
 
-## Take a tack to port or starboard
+## Tack to port or starboard
 
 The `value` is `port` or `starboard`. 
-This command must be send only when your pilot is in `auto` or `wind` mode.
 
 ```
 PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/actions/tack
