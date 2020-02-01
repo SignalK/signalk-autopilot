@@ -14,17 +14,17 @@
  */
 
 const commands = {
-  "auto":    '{"action":"setState","value":"auto"}',
-  "wind":    '{"action":"setState","value":"wind"}',
-  "route":   '{"action":"setState","value":"route"}',
-  "standby": '{"action":"setState","value":"standby"}',
-  "+1":      '{"action":"changeHeadingByKey","value":"+1"}',
-  "+10":     '{"action":"changeHeadingByKey","value":"+10"}',
-  "-1":      '{"action":"changeHeadingByKey","value":"-1"}',
-  "-10":     '{"action":"changeHeadingByKey","value":"-10"}',
-  "tackToPort":   '{"action":"tackTo","value":"port"}',
-  "tackToStarboard":   '{"action":"tackTo","value":"starboard"}',
-  "advanceWaypoint":   '{"action":"advanceWaypoint"}'
+  "auto":    {"path":"steering.autopilot.state","value":"auto"},
+  "wind":    {"path":"steering.autopilot.state","value":"wind"},
+  "route":   {"path":"steering.autopilot.state","value":"route"},
+  "standby": {"path":"steering.autopilot.state","value":"standby"},
+  "+1":      {"path":"steering.autopilot.actions.adjustHeading","value":1},
+  "+10":     {"path":"steering.autopilot.actions.adjustHeading","value":10},
+  "-1":      {"path":"steering.autopilot.actions.adjustHeading","value":-1},
+  "-10":     {"path":"steering.autopilot.actions.adjustHeading","value":-10},
+  "tackToPort":   {"path":"steering.autopilot.actions.tack","value":"port"},
+  "tackToStarboard":   {"path":"steering.autopilot.actions.tack","value":"starboard"},
+  "advanceWaypoint":   {"path":"steering.autopilot.actions.advanceWaypoint","value":"1"}
 }
 
 var notificationsArray = {};
@@ -66,7 +66,6 @@ var skPathToAck = '';
 var actionToBeConfirmed = '';
 var countDownValue = 0;
 var pilotStatus = '';
-var rootPath = '/signalk/v1/api/vessels/self/steering/autopilot/';
 
 var displayByPathParams = {
   'navigation.headingMagnetic': {
@@ -157,11 +156,8 @@ var demo = function () {
 }
 
 var buildAndSendCommand = function(cmd) {
-  var tmpJson = '{"context": "vessels.self", "correlationId": "184743-434373-348483", "put": { "path": "steering.autopilot.state", "value": "auto" }}';
-ws.send(tmpJson);
-return;
-  var cmdJson = commands[cmd];
-  if (typeof cmdJson === 'undefined') {
+  var cmdAction = commands[cmd];
+  if (typeof cmdAction === 'undefined') {
     alert('Unknown command !');
     return null;
   }
@@ -180,19 +176,35 @@ return;
     clearConfirmCmd();
     if ((cmd === 'tackToPort')||(cmd === 'tackToStarboard')) {
       sendCommand(commands['auto']); // force mode 'auto' to take a tack
-      sendCommand(cmdJson);
+      sendCommand(cmdAction);
     }
     if ((cmd === 'route')&&(pilotStatus === 'route')) {
       sendCommand(commands['advanceWaypoint']);
     }
     return null;
   }
-  sendCommand(cmdJson);
+  sendCommand(cmdAction);
 }
 
-var sendCommand = function(cmdJson) {
+var sendCommand = function(cmdAction) {
+  reconnect = true;
+  wsConnect();
+  if ((ws === null) || (ws.readyState !== 1)) {
+    errorIconDiv.style.visibility = 'visible';
+    alert('Not connected yet, please retry your command...');
+    return null;
+  }
+  console.log(cmdAction);
   errorIconDiv.style.visibility = 'hidden';
   sendIconDiv.style.visibility = 'visible';
+  var cmdActionValue = (typeof cmdAction.value === 'string') ? '"' + cmdAction.value + '"' : cmdAction.value;
+  var cmdJson = '{"context": "vessels.self", "requestId": "184743-434373-348483", "put": { "path": ';
+  cmdJson = cmdJson + '"' + cmdAction.path + '", "value": ' + cmdActionValue + ' }}';
+  console.log(cmdJson);
+  ws.send(cmdJson);
+  setTimeout(() => {sendIconDiv.style.visibility = 'hidden';}, timeoutBlink);
+
+/*
   window.fetch('/plugins/raymarineautopilot/command', {
     method: 'POST',
     headers: {
@@ -216,8 +228,33 @@ var sendCommand = function(cmdJson) {
         alert(status.message)
     }
   );
-  reconnect = true;
-  wsConnect();
+*/
+}
+
+var silenceAlarm = function(skPathToAck) {
+  window.fetch('/silenceNotification', {
+    method: 'POST',
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: {path: skPathToAck},
+  }).then(function(response) {
+      setTimeout(() => {sendIconDiv.style.visibility = 'hidden';}, timeoutBlink);
+      if (response.status !== 200) {
+        errorIconDiv.style.visibility = 'visible';
+        if (response.status === 401) {
+          alert('You must be authenticated to send commands !')
+        } else {
+          errorIconDiv.style.visibility = 'visible';
+          alert('[' + response.status + ']' + response.text)
+        }
+      }
+    }, function(status) {
+        sendIconDiv.style.visibility = 'hidden';
+        errorIconDiv.style.visibility = 'visible';
+        alert(status.message)
+    }
+  );
 }
 
 var notificationToValue = function (skPathToAck) {
@@ -237,7 +274,7 @@ var sendSilence = function() {
     }
   } else {
       if (skPathToAck !== '') {
-        sendCommand('{"action":"silenceAlarm","value":{"signalkPath":"' + skPathToAck + '"}}');
+        silenceAlarm(skPathToAck);
       }
       countDownValue = 0;
       updateCountDownCounter();
@@ -422,6 +459,15 @@ var wsConnect = function() {
         clearTimeout(handleReceiveTimeout);
         handleReceiveTimeout = setTimeout(() => {receiveIconDiv.style.visibility = 'hidden';}, timeoutBlink);
         var jsonData = JSON.parse(event.data)
+        if (typeof jsonData.requestId !== 'undefined') {
+          if (jsonData.state === 'COMPLETED') {
+            if (jsonData.statusCode !== 200) {
+              errorIconDiv.style.visibility = 'visible';
+              alert('[' + jsonData.statusCode + ']' + jsonData.message);
+            }
+          }
+          console.log(jsonData);
+        }
         dispatchMessages(jsonData);
       }
 
