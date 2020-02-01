@@ -191,10 +191,11 @@ module.exports = function(app) {
     let description = 'No EV-1 Found'
 
     if ( !discovered ) {
-      //const sources = app.getPath('/sources')
-      let full = app.deltaCache.buildFull(undefined, [ 'sources' ])
-      if ( full && full.sources ) {
-        _.values(full.sources).forEach(v => {
+      //let full = app.deltaCache.buildFull(undefined, [ 'sources' ])
+      //if ( full && full.sources ) {
+      const sources = app.getPath('/sources')
+      if ( sources ) {
+        _.values(sources).forEach(v => {
           if ( typeof v === 'object' ) {
             _.keys(v).forEach(id => {
               if ( v[id].n2k && v[id].n2k.hardwareVersion && v[id].n2k.hardwareVersion.startsWith('Raymarine EV-1 Course Computer') ) {
