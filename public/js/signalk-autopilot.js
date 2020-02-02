@@ -203,58 +203,6 @@ var sendCommand = function(cmdAction) {
   console.log(cmdJson);
   ws.send(cmdJson);
   setTimeout(() => {sendIconDiv.style.visibility = 'hidden';}, timeoutBlink);
-
-/*
-  window.fetch('/plugins/raymarineautopilot/command', {
-    method: 'POST',
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: cmdJson,
-  }).then(function(response) {
-      setTimeout(() => {sendIconDiv.style.visibility = 'hidden';}, timeoutBlink);
-      if (response.status !== 200) {
-        errorIconDiv.style.visibility = 'visible';
-        if (response.status === 401) {
-          alert('You must be authenticated to send commands !')
-        } else {
-          errorIconDiv.style.visibility = 'visible';
-          alert('[' + response.status + ']' + response.text)
-        }
-      }
-    }, function(status) {
-        sendIconDiv.style.visibility = 'hidden';
-        errorIconDiv.style.visibility = 'visible';
-        alert(status.message)
-    }
-  );
-*/
-}
-
-var silenceAlarm = function(skPathToAck) {
-  window.fetch('/silenceNotification', {
-    method: 'POST',
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: {path: skPathToAck},
-  }).then(function(response) {
-      setTimeout(() => {sendIconDiv.style.visibility = 'hidden';}, timeoutBlink);
-      if (response.status !== 200) {
-        errorIconDiv.style.visibility = 'visible';
-        if (response.status === 401) {
-          alert('You must be authenticated to send commands !')
-        } else {
-          errorIconDiv.style.visibility = 'visible';
-          alert('[' + response.status + ']' + response.text)
-        }
-      }
-    }, function(status) {
-        sendIconDiv.style.visibility = 'hidden';
-        errorIconDiv.style.visibility = 'visible';
-        alert(status.message)
-    }
-  );
 }
 
 var notificationToValue = function (skPathToAck) {
@@ -274,7 +222,7 @@ var sendSilence = function() {
     }
   } else {
       if (skPathToAck !== '') {
-        silenceAlarm(skPathToAck);
+        sendCommand({"path":"notifications." + skPathToAck + ".state","value":"normal"});
       }
       countDownValue = 0;
       updateCountDownCounter();
