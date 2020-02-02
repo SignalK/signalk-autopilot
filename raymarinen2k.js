@@ -198,7 +198,7 @@ module.exports = function(app) {
         _.values(sources).forEach(v => {
           if ( typeof v === 'object' ) {
             _.keys(v).forEach(id => {
-              if ( v[id].n2k && v[id].n2k.hardwareVersion && v[id].n2k.hardwareVersion.startsWith('Raymarine EV-1 Course Computer') ) {
+              if ( v[id] && v[id].n2k && v[id].n2k.hardwareVersion && v[id].n2k.hardwareVersion.startsWith('Raymarine EV-1 Course Computer') ) {
                 discovered = id
               }
             })
