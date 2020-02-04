@@ -114,7 +114,7 @@ module.exports = function(app) {
     }
 
     _.values(pilots).forEach(ap => {
-      if ( ap ) {
+      if ( ap && ap.properties ) {
         config.properties  = { ...ap.properties(), ...config.properties }
       }
     })
