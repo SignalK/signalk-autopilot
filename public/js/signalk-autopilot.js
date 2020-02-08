@@ -46,7 +46,9 @@ const timeoutReconnect = 2000;
 const timeoutValue = 3000;
 const timeoutBlink = 500;
 const countDownDefault = 5;
-const noDataMessage = '-- -- -- --';
+const noData = '-- -- -- --';
+const noPilot = 'No pilot';
+const noHeading = '---&deg;';
 var pilotStatusDiv = undefined;
 var headingValueDiv = undefined;
 var receiveIconDiv = undefined;
@@ -62,6 +64,8 @@ var notificationCounterTextDiv = undefined;
 var silenceScreenDiv = undefined;
 var silenceScreenText = undefined;
 var confirmScreenDiv = undefined;
+var remoteHelpDiv = undefined;
+var remoteMainDiv = undefined;
 var skPathToAck = '';
 var actionToBeConfirmed = '';
 var countDownValue = 0;
@@ -94,12 +98,14 @@ var displayByPathParams = {
   }
 }
 
-var preferedDisplayMode = {
+const defaultPpreferedDisplayMode = {
   wind: 'environment.wind.angleApparent',
   route: 'navigation.headingMagnetic',
   auto: 'navigation.headingMagnetic',
   standby: 'navigation.headingMagnetic'
 }
+
+var preferedDisplayMode = defaultPpreferedDisplayMode;
 
 var startUpAutoPilot = function() {
   pilotStatusDiv = document.getElementById('pilotStatus');
@@ -117,14 +123,17 @@ var startUpAutoPilot = function() {
   silenceScreenTextDiv = document.getElementById('silenceScreenText');
   confirmScreenDiv = document.getElementById('confirmScreen');
   countDownCounterDiv = document.getElementById('countDownCounter');
-  setPilotStatus('');
-  setHeadindValue('');
-  var savedPreferedDisplayModeJSON = localStorage.getItem('signalk-autopilot');
-  var savedPreferedDisplayMode = savedPreferedDisplayModeJSON && JSON.parse(savedPreferedDisplayModeJSON);
-  if (savedPreferedDisplayMode === null) {savedPreferedDisplayMode = {};}
-  savedPreferedDisplayMode = (typeof savedPreferedDisplayMode.preferedDisplayMode !== 'undefined') ? savedPreferedDisplayMode.preferedDisplayMode : {};
-  Object.keys(preferedDisplayMode).map( pilotMode => {
-    var pathForPilotMode = savedPreferedDisplayMode[pilotMode];
+  remoteHelpDiv = document.getElementById('remoteHelp');
+  remoteMainDiv = document.getElementById('remoteMain');
+  pilotStatusDiv.innerHTML = noData;
+  headingValueDiv.innerHTML = noData;
+  var signalkAutopilotSettingsJSON = localStorage.getItem('signalk-autopilot');
+  var signalkAutopilotSettings = signalkAutopilotSettingsJSON && JSON.parse(signalkAutopilotSettingsJSON);
+  if (signalkAutopilotSettings === null) {signalkAutopilotSettings = {'preferedDisplayMode': defaultPpreferedDisplayMode};}
+  var newPreferedDisplayMode = signalkAutopilotSettings.preferedDisplayMode;
+  // check content of signalkAutopilotSettings.preferedDisplayMode loaded from localStorage
+  Object.keys(newPreferedDisplayMode).map( pilotMode => {
+    var pathForPilotMode = newPreferedDisplayMode[pilotMode];
     if ((typeof pathForPilotMode !== 'undefined') &&
         (typeof displayByPathParams[pathForPilotMode] !== 'undefined') &&
         displayByPathParams[pathForPilotMode].usage.includes(pilotMode)) {
@@ -274,21 +283,20 @@ var getNextNotification = function(skPath) {
 }
 
 var changePreferedDisplayMode = function() {
-  const currentPilotStatus = pilotStatus;
-  const currentPreferedDisplayMode = preferedDisplayMode[currentPilotStatus];
+  const currentPreferedDisplayMode = preferedDisplayMode[pilotStatus];
   var pathForPilotStatus = [];
   if (typeof currentPreferedDisplayMode === 'undefined') {return null}
   for (let [key, value] of Object.entries(displayByPathParams)) {
-   if ((typeof value.usage === 'object') && value.usage.includes(currentPilotStatus)) {
+   if ((typeof value.usage === 'object') && value.usage.includes(pilotStatus)) {
      pathForPilotStatus.push(key);
    }
   }
   const currentIndex = pathForPilotStatus.indexOf(currentPreferedDisplayMode);
   const nextIndex = (currentIndex + 1) % pathForPilotStatus.length;
-  preferedDisplayMode[currentPilotStatus] = pathForPilotStatus[nextIndex];
+  preferedDisplayMode[pilotStatus] = pathForPilotStatus[nextIndex];
   localStorage.setItem('signalk-autopilot', JSON.stringify({preferedDisplayMode: preferedDisplayMode}));
-  setHeadindValue(displayByPathParams[preferedDisplayMode[currentPilotStatus]].value);
-  typeValIconDiv.innerHTML = displayByPathParams[preferedDisplayMode[currentPilotStatus]].typeVal;
+  setHeadindValue(displayByPathParams[preferedDisplayMode[pilotStatus]].value);
+  typeValIconDiv.innerHTML = displayByPathParams[preferedDisplayMode[pilotStatus]].typeVal;
 }
 
 var confirmTack = function(cmd) {
@@ -347,6 +355,9 @@ var wsConnect = function() {
         powerOffIconDiv.style.visibility = 'hidden';
         powerOnIconDiv.style.visibility = 'visible';
         errorIconDiv.style.visibility = 'hidden';
+        pilotStatusDiv.innerHTML = noPilot;
+        headingValueDiv.innerHTML = noHeading;
+
         var subscriptionObject = {
           "context": "vessels.self",
           "subscribe": [
@@ -409,7 +420,10 @@ var wsConnect = function() {
         var jsonData = JSON.parse(event.data)
         if (typeof jsonData.requestId !== 'undefined') {
           if (jsonData.state === 'COMPLETED') {
-            if (jsonData.statusCode !== 200) {
+            if (jsonData.statusCode === 403) {
+              errorIconDiv.style.visibility = 'visible';
+              alert('[' + jsonData.statusCode + ']' + 'You must be authenticated to send command');
+            } else if (jsonData.statusCode !== 200) {
               errorIconDiv.style.visibility = 'visible';
               alert('[' + jsonData.statusCode + ']' + jsonData.message);
             }
@@ -460,37 +474,51 @@ var buildHeadindValue = function(path, value) {
   }
 
   value = Math.round(value * (180/Math.PI));
-  displayByPathParam.value = ((typeof value === 'undefined') || isNaN(value)) ? noDataMessage : ' ' + value + '&deg;';
+  displayByPathParam.value = ((typeof value === 'undefined') || isNaN(value)) ? '' : value + '&deg;';
   clearTimeout(displayByPathParam.handleTimeout);
   displayByPathParam.handleTimeout = setTimeout(() => {
-    displayByPathParams[path].value = noDataMessage;
     console.log('timeout:{'+pilotStatus+'}['+path+']'+displayByPathParams[path].value);
+    displayByPathParams[path].value = '';
     if (preferedDisplayMode[pilotStatus] == path) {
-      setHeadindValue(displayByPathParams[path].value);
+      setHeadindValue('');
     }
   }, timeoutValue, path);
+
   if (preferedDisplayMode[pilotStatus] == path) {
     if (typeValIconDiv.innerHTML !== displayByPathParam.typeVal) {
       typeValIconDiv.innerHTML = displayByPathParam.typeVal;
     }
-    setHeadindValue(displayByPathParams[path].value);
+    setHeadindValue(displayByPathParam.value);
   }
+
 }
 
 var setHeadindValue = function(value) {
-  if (pilotStatus === '') { value = ''}
-  headingValueDiv.innerHTML = ((typeof value === 'undefined') || (value === '')) ? noDataMessage : value;
+  if (typeof value === 'undefined') {value = ''};
+  if (pilotStatus === '') {
+    headingValueDiv.innerHTML = noData;
+  } else {
+      headingValueDiv.innerHTML = (value !== '') ? value : noHeading;
+    }
 }
 
 var setPilotStatus = function(value) {
-  if (typeof value === 'undefined') {
-    value = '';
-  }
-  pilotStatus = value;
+  pilotStatus = (typeof value !== 'undefined') ? value : '';
+  if (pilotStatus !== '') {
+    var typeVal = displayByPathParams[preferedDisplayMode[pilotStatus]].typeVal;
+    if (typeValIconDiv.innerHTML !== typeVal)
+    typeValIconDiv.innerHTML = typeVal;
+  } else { typeValIconDiv.innerHTML = '' }
+  
   if (value === '') {
-    setHeadindValue(noDataMessage);
-    pilotStatusDiv.innerHTML = noDataMessage;
-  } else { pilotStatusDiv.innerHTML = value;}
+    setHeadindValue('');
+    pilotStatusDiv.innerHTML = noPilot;
+  } else { 
+      if (pilotStatusDiv.innerHTML !== value) {
+        setHeadindValue('');
+        pilotStatusDiv.innerHTML = value;
+      }
+    }
 }
 
 var setNotificationMessage = function(value) {
@@ -525,9 +553,23 @@ var setNotificationMessage = function(value) {
 }
 
 var displayHelp = function() {
-  bottomBarIconDiv.style.visibility = 'visible';
-  bottomBarIconDiv.innerHTML = '&nbsp;Not yet implemented...'
-  setTimeout(() => {bottomBarIconDiv.style.visibility = 'hidden';}, 2000);
+  if (remoteMainDiv.style.visibility !== 'hidden') {
+    fitToParent(document.getElementById('remoteHelp'), 20);
+    remoteMainDiv.style.visibility = 'hidden';
+    remoteMainDiv.style.display = 'none';
+
+    remoteHelpDiv.style.visibility = 'visible';
+    remoteHelpDiv.style.display = 'block';
+    remoteHelpDiv.innerHTML = '<img src="img/GUI-help.png" onclick="displayHelp();">';
+  } else {
+      fitToParent(document.getElementById('remoteMain'), 20);
+      remoteHelpDiv.style.visibility = 'hidden';
+      remoteHelpDiv.style.display = 'none';
+      remoteHelpDiv.innerHTML = '';
+
+      remoteMainDiv.style.visibility = 'visible';
+      remoteMainDiv.style.display = 'block';
+    }
 }
 
 var wsOpenClose = function() {
@@ -565,8 +607,8 @@ var cleanOnClosed = function() {
     displayByPathParams[path].value = '';
   });
   clearTimeout(handlePilotStatusTimeout);
-  setPilotStatus('');
-  setHeadindValue('');
+  pilotStatusDiv.innerHTML = noData;
+  headingValueDiv.innerHTML = noData;
 }
 
 var updateCountDownCounter = function() {

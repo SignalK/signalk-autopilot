@@ -1,9 +1,10 @@
 # signalk-autopilot
 
-<p align="center"><img src="./small-rayremote.png"></p>
+<p align="center"><img src="./small-GUI-remote.png"></p>
 
 `signalk-autopilot` is composed of 2 modules: 
-- [A graphical interface that emulates a Raymarine remote control](./GUI-help.md "GUI help")
+- [A graphical interface that emulates a Raymarine remote control](./GUI-help.md "GUI help")  
+To be able to acknowledge pilot related alarms through the GUI you need to install the `signalk-alarm-silencer` plugin.  
 - A back-end API described below.
 
 This current only supports Raymarine NMEA 2000 Autopilots, but I'll be adding support for other autopilots as needed.

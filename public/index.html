@@ -12,7 +12,7 @@
         function main() {
           const margin = 20;
           requestAnimationFrame(function fitToParentOnResize() {
-            fitToParent(document.getElementById('remoteBig'), margin);
+            fitToParent(document.getElementById('remoteMain'), margin);
           });
         }
         window.addEventListener("DOMContentLoaded", main);
@@ -24,7 +24,8 @@
   </head>
   <body onload="startUpAutoPilot()">
   <div id="main">
-    <div class="bgRemoteBig" id="remoteBig">
+    <div id="remoteHelp"></div>
+    <div class="bgRemoteMain" id="remoteMain">
       <div id="logoSignalK"></div>
       <div id="logoText">Auto Pilot</div>
       <div id="topBarIcon">
@@ -85,11 +86,9 @@
       <div class="defaultKey btnCircleWithDotRed" id="keyStandby" onClick="buildAndSendCommand('standby');" onTouchend="touchEnd(event)">
         <div class="defaultTextFontKey" id="keyStandbyText">STANDBY</div>
       </div>
-<!--
       <div class="defaultKey btnBottomSmallBlack" id="keyHelp" onClick="displayHelp();" onTouchend="touchEnd(event)">
         <div class="defaultTextFontKey" id="keyHelpText"></div>
       </div>
--->
       <div class="defaultKey btnBottomSmallBlack" id="keyPower" onClick="wsOpenClose();" onTouchend="touchEnd(event)">
         <div class="defaultTextFontKey" id="keyPowerText"></div>
       </div>
