@@ -1,4 +1,4 @@
-# GUI help for signalk-raymarine-autopilot
+# GUI help for signalk-autopilot
 
-![GUI help](./GUI-help.png "GUI help")
+![GUI help](./public/img/GUI-help.png "GUI help")
 
