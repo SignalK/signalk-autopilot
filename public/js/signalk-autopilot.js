@@ -206,9 +206,8 @@ var sendCommand = function(cmdAction) {
   console.log(cmdAction);
   errorIconDiv.style.visibility = 'hidden';
   sendIconDiv.style.visibility = 'visible';
-  var cmdActionValue = (typeof cmdAction.value === 'string') ? '"' + cmdAction.value + '"' : cmdAction.value;
-  var cmdJson = '{"context": "vessels.self", "requestId": "184743-434373-348483", "put": { "path": ';
-  cmdJson = cmdJson + '"' + cmdAction.path + '", "value": ' + cmdActionValue + ' }}';
+  var cmdActionJSON = JSON.stringify(cmdAction);
+  var cmdJson = '{"context":"vessels.self","requestId":"184743-434373-348483","put":' + cmdActionJSON + '}';
   console.log(cmdJson);
   ws.send(cmdJson);
   setTimeout(() => {sendIconDiv.style.visibility = 'hidden';}, timeoutBlink);
@@ -232,6 +231,7 @@ var sendSilence = function() {
   } else {
       if (skPathToAck !== '') {
         sendCommand({"path":"notifications." + skPathToAck + ".state","value":"normal"});
+//        sendCommand({"path":"notifications." + skPathToAck + ".method","value":[]});
       }
       countDownValue = 0;
       updateCountDownCounter();
