@@ -210,6 +210,7 @@ module.exports = function(app) {
     if ( discovered ) {
       defaultId = discovered
       description = `Discovered an EV-1 with id ${discovered}`
+      app.debug(description)
     }
       
     return {
