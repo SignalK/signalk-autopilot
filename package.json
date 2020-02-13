@@ -4,7 +4,9 @@
   "description": "Plugin that controls an autopilot",
   "main": "index.js",
   "scripts": {
-    "test": "$NODE $npm_package_main"
+    "test": "$NODE $npm_package_main",
+    "create-release": "github-create-release --owner signalk-autopilot --repository signalk",
+    "release": "git tag -d v$npm_package_version && git tag v$npm_package_version && git push --tags && git push && npm run create-release"
   },
   "keywords": [
     "signalk-node-server-plugin",
@@ -14,6 +16,9 @@
   "license": "ISC",
   "dependencies": {
     "lodash": "^4.17.15"
+  },
+  "devDependencies": {
+    "@signalk/github-create-release": "^1.0.1"
   },
   "repository": {
     "type": "git",
