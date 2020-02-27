@@ -37,8 +37,13 @@ module.exports = function(app) {
 
   _.keys(types).forEach( type => {
     const module = types[type]
+    //console.log(`${type}: ${module}`)
     if ( module ) {
-      pilots[type] = module(app)
+      if ( typeof module !== 'function' ) {
+        app.error(`bad ap impl ${module} ${typeof module}`)
+      } else {
+        pilots[type] = module(app)
+      }
     }
   })
 
