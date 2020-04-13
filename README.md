@@ -2,12 +2,14 @@
 
 <p align="center"><img src="./small-GUI-remote.png"></p>
 
-`signalk-autopilot` is composed of 2 modules: 
+`signalk-autopilot` is composed of 2 modules:
 - [A graphical interface that emulates a Raymarine remote control](./GUI-help.md "GUI help")  
 To be able to acknowledge pilot related alarms through the GUI you need to install the `signalk-alarm-silencer` plugin.  
 - A back-end API described below.
 
-This current only supports Raymarine NMEA 2000 Autopilots, but I'll be adding support for other autopilots as needed.
+This current only supports Raymarine NMEA 2000 and Raymarine Seatalk 1 Autopilots, but I'll be adding support for other autopilots as needed.
+
+For Seatalk 1 Autopilots to work, a device that can translate Seatalk datagrams back and forth within an NMEA0183 sentence is required. They may be purchased from [Digital Yacht](https://digitalyachtamerica.com/product/st-nmea-usb/)) or [gadgetpool](http://www.gadgetpool.eu/nuke/modules.php?name=News&file=article&sid=28).
 
 # API
 
@@ -70,7 +72,7 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/actions
 
 ## Tack to port or starboard
 
-The `value` is `port` or `starboard`. 
+The `value` is `port` or `starboard`.
 
 ```
 PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/actions/tack
@@ -100,5 +102,3 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/target/
   "value": 1.52,
 }
 ```
-
-

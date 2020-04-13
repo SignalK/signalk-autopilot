@@ -24,7 +24,7 @@ const advance = "steering.autopilot.actions.advanceWaypoint"
 
 const types  = {
   raymarineN2K: require('./raymarinen2k'),
-  raymarineST: undefined,
+  raymarineST: require('./raymarinest'),
   nmea2000: undefined,
   nmea0183: undefined
 }
@@ -51,27 +51,27 @@ module.exports = function(app) {
 
     autopilot = pilots[props.type]
     autopilot.start(props)
-    
+
     app.registerPutHandler('vessels.self',
                            state_path,
                            autopilot.putState)
-    
+
     app.registerPutHandler('vessels.self',
                            target_heading_path,
                            autopilot.putTargetHeading)
-    
+
     app.registerPutHandler('vessels.self',
                            target_wind_path,
                            autopilot.putTargetWind)
-    
+
     app.registerPutHandler('vessels.self',
                            adjust_heading,
                            autopilot.putAdjustHeading)
-    
+
     app.registerPutHandler('vessels.self',
                            tack,
                            autopilot.putTack)
-    
+
     app.registerPutHandler('vessels.self',
                            advance,
                            autopilot.putAdvanceWaypoint)
@@ -84,7 +84,7 @@ module.exports = function(app) {
       autopilot.stop()
     }
   }
-  
+
   plugin.id = "autopilot"
   plugin.name = "Autopilot Control"
   plugin.description = "Plugin that controls an autopilot"
@@ -99,16 +99,16 @@ module.exports = function(app) {
           title: 'Autopilot Type',
           enum: [
             'raymarineN2K',
+            'raymarineST',
             /*
-              'raymarineST',
               'nmea2000',
               'nmea0183'
             */
           ],
           enumNames: [
             'Raymarine NMEA2000',
+            'Raymarine Seatalk 1',
             /*
-              'Raymarine Seatalk 1',
               'Generic NMEA2000',
               'NMEA 0183'
             */
@@ -126,8 +126,6 @@ module.exports = function(app) {
 
     return config
   }
-  
+
   return plugin;
 }
-
-
