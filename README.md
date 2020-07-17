@@ -11,6 +11,15 @@ This current only supports Raymarine NMEA 2000 and Raymarine Seatalk 1 Autopilot
 
 For Seatalk 1 Autopilots to work, a device that can translate Seatalk datagrams back and forth within an NMEA0183 sentence is required. They may be purchased from [Digital Yacht](https://digitalyachtamerica.com/product/st-nmea-usb/)) or [gadgetpool](http://www.gadgetpool.eu/nuke/modules.php?name=News&file=article&sid=28). There is also the [DIY](https://pysselilivet.blogspot.com/2020/06/seatalk1-to-nmea-0183-converter-diy.html) route. Also, signalk-to-nmea0183 plugin with APB (for route control) and MWV (for wind steer) should be enabled
 
+# Current State
+
+The current state of the autopilot can be found at the following paths:
+
+- steering.autopilot.target.headingMagnetic
+- steering.autopilot.target.headingTrue
+- steering.autopilot.target.windAngleApparent
+- steering.autopilot.state (standby, wind, route, or auto)
+
 # API
 
 All messages to plugin are done using PUT requests. These can be done via HTTP or over WebSockets.
