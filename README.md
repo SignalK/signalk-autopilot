@@ -16,7 +16,6 @@ For Seatalk 1 Autopilots to work, a device that can translate Seatalk datagrams 
 The current state of the autopilot can be found at the following paths:
 
 - steering.autopilot.target.headingMagnetic
-- steering.autopilot.target.headingTrue
 - steering.autopilot.target.windAngleApparent
 - steering.autopilot.state (standby, wind, route, or auto)
 
