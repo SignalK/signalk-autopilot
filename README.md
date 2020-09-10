@@ -9,7 +9,7 @@ To be able to acknowledge pilot related alarms through the GUI you need to insta
 
 This currently only supports Raymarine NMEA 2000 and Raymarine Seatalk 1 Autopilots, but I'll be adding support for other autopilots as needed.
 
-For Seatalk 1 Autopilots to work, a device that can translate Seatalk datagrams back and forth within an NMEA0183 sentence is required. They may be purchased from [Digital Yacht](https://digitalyachtamerica.com/product/st-nmea-usb/)) or [gadgetpool](http://www.gadgetpool.eu/nuke/modules.php?name=News&file=article&sid=28). There is also the [DIY](https://pysselilivet.blogspot.com/2020/06/seatalk1-to-nmea-0183-converter-diy.html) route. Also, signalk-to-nmea0183 plugin with APB (for route control) and MWV (for wind steer) should be enabled. For an example guide, see [TinyNMEA-USB.md](TinyNMEA-USB.md)
+For Seatalk 1 Autopilots to work, a device that can translate Seatalk datagrams back and forth within an NMEA0183 sentence is required. They may be purchased from [Digital Yacht](https://digitalyachtamerica.com/product/st-nmea-usb/)) or [gadgetpool](http://www.gadgetpool.eu/product_info.php?products_id=54). There is also the [DIY](https://pysselilivet.blogspot.com/2020/06/seatalk1-to-nmea-0183-converter-diy.html) route. Also, signalk-to-nmea0183 plugin with APB (for route control) and MWV (for wind steer) should be enabled. For an example guide, see [TinyNMEA-USB.md](TinyNMEA-USB.md) Also, signalk-to-nmea0183 plugin with APB (for route control) and MWV (for wind steer) should be enabled
 
 # Current State
 
