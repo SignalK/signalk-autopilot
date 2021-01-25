@@ -65,6 +65,12 @@ module.exports = function(app) {
     ])
     app.debug("datagram: " + datagram)
     app.emit(outputEvent, sentence)
+
+    var sentence = toSentence([
+      '$PSMDST',
+      datagram
+    ])
+    app.emit(outputEvent, sentence)
   }
 
   pilot.putTargetHeading = (context, path, value, cb) => {
