@@ -120,7 +120,7 @@ module.exports = function(app) {
       return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
     } else {
       var new_value = Math.trunc(degsToRad(value) * 10000)
-      var msg = util.format(heading_command, (new Date()).toISOString(), default_src,
+      var msg = util.format(wind_direction_command, (new Date()).toISOString(), default_src,
                             autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))
       
       sendN2k([msg])
