@@ -114,7 +114,7 @@ module.exports = function(app) {
     if ( state !== 'wind' ) {
       return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
     } else {
-      var new_value = Math.trunc(radsToDeg(value))
+      var new_value = Math.trunc(value)
       if (new_value > 180) new_value-=180
       var XX = 2* parseInt(new_value/256)
       var YY = 2*(new_value-XX)
