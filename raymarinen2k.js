@@ -70,7 +70,7 @@ module.exports = function(app) {
       timers.push(setInterval(() => {
         const msg = util.format(keep_alive2, (new Date()).toISOString(),
                                 default_src)
-        console.log('sending keep_alive: ' + msg)
+        app.debug('sending keep_alive: ' + msg)
         app.emit('nmea2000out', msg)
       }, 2000))
     }
