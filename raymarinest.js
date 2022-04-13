@@ -15,17 +15,16 @@
  */
 
 const util = require('util')
+const { SUCCESS_RES, FAILURE_RES, STATES } = require('./const')
+const { AUTO, WIND, ROUTE, STANDBY} = STATES
 
 const state_path = "steering.autopilot.state.value"
 
-const SUCCESS_RES = { state: 'SUCCESS' }
-const FAILURE_RES = { state: 'FAILURE' }
-
 const state_commands = {
-    "auto":    "86,11,01,FE",
-    "wind":    "86,11,23,DC",
-    "route":   "86,11,03,FC",
-    "standby": "86,11,02,FD"
+    [AUTO]:    "86,11,01,FE",
+    [WIND]:    "86,11,23,DC",
+    [ROUTE]:   "86,11,03,FC",
+    [STANDBY]: "86,11,02,FD"
 }
 const keys_code = {
     "+1":      "86,11,07,F8",

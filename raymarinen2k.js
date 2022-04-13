@@ -16,17 +16,16 @@
 
 const util = require('util')
 const _ = require('lodash')
+const { SUCCESS_RES, FAILURE_RES, STATES } = require('./const')
+const { AUTO, WIND, ROUTE, STANDBY } = STATES
 
 const state_path = "steering.autopilot.state.value"
 
-const SUCCESS_RES = { state: 'SUCCESS' }
-const FAILURE_RES = { state: 'FAILURE' }
-
 const state_commands = {
-    "auto":    "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,40,00,05,ff,ff",
-    "wind":    "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,00,01,05,ff,ff",
-    "route":   "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,80,01,05,ff,ff",
-    "standby": "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,00,00,05,ff,ff"
+    [AUTO]:    "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,40,00,05,ff,ff",
+    [WIND]:    "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,00,01,05,ff,ff",
+    [ROUTE]:   "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,80,01,05,ff,ff",
+    [STANDBY]: "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,00,00,05,ff,ff"
 }
 const keys_code = {
     "+1":      "07,f8",
