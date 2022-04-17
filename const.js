@@ -7,4 +7,4 @@ module.exports = {
     ROUTE: "route",
     STANDBY: "standby",
   },
-};
+}
