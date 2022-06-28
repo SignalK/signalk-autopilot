@@ -24,6 +24,7 @@ const advance = "steering.autopilot.actions.advanceWaypoint"
 
 const types  = {
   raymarineN2K: require('./raymarinen2k'),
+  raymarineN2KSeatalkConverter: require('./raymarinen2kSeaTalkConverter'),
   raymarineST: require('./raymarinest'),
   nmea2000: undefined,
   nmea0183: undefined
@@ -99,6 +100,7 @@ module.exports = function(app) {
           title: 'Autopilot Type',
           enum: [
             'raymarineN2K',
+            'raymarineN2KSeaTalkConverter',
             'raymarineST',
             /*
               'nmea2000',
@@ -107,6 +109,7 @@ module.exports = function(app) {
           ],
           enumNames: [
             'Raymarine NMEA2000',
+            'Raymarine SmartPilot AP -> E22158 SeaTalk-STNG-Converter',
             'Raymarine Seatalk 1',
             /*
               'Generic NMEA2000',
