@@ -23,11 +23,9 @@ const tack = "steering.autopilot.actions.tack"
 const advance = "steering.autopilot.actions.advanceWaypoint"
 
 const types  = {
-  raymarineN2K: require('./raymarinen2k'),
-  raymarineN2KSeatalkConverter: require('./raymarinen2kSeaTalkConverter'),
   raymarineST: require('./raymarinest'),
-  nmea2000: undefined,
-  nmea0183: undefined
+  raymarineN2KSeatalkConverter: require('./raymarinen2kSeaTalkConverter'),
+  raymarineN2K: require('./raymarinen2k')
 }
 
 module.exports = function(app) {
@@ -101,20 +99,12 @@ module.exports = function(app) {
           enum: [
             'raymarineN2K',
             'raymarineN2KSeaTalkConverter',
-            'raymarineST',
-            /*
-              'nmea2000',
-              'nmea0183'
-            */
+            'raymarineST'
           ],
           enumNames: [
             'Raymarine NMEA2000',
-            'Raymarine SmartPilot AP -> E22158 SeaTalk-STNG-Converter',
-            'Raymarine Seatalk 1',
-            /*
-              'Generic NMEA2000',
-              'NMEA 0183'
-            */
+            'Raymarine E22158 SeaTalk-STNG-Converter -> SmartPilot AP',
+            'Raymarine Seatalk 1 AP'
           ],
           default: 'raymarineN2K'
         }
@@ -126,7 +116,6 @@ module.exports = function(app) {
         config.properties  = { ...ap.properties(), ...config.properties }
       }
     })
-
     return config
   }
 

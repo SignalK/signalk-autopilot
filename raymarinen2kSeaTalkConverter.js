@@ -38,9 +38,9 @@ const keys_code = {
   "+1+10":   "22,dd"
 }
 
-const key_command = "%s,7,126720,%s,%s,16,3b,9f,f0,81,86,21,%s,07,01,02,00,00,00,00,00,00,00,00,00,00,00,ff,ff,ff,ff,ff" // ok
+const key_command = "%s,7,126720,%s,%s,16,3b,9f,f0,81,86,21,%s,07,01,02,00,00,00,00,00,00,00,00,00,00,00,ff,ff,ff,ff,ff"
 const heading_command = "%s,3,126208,%s,%s,14,01,50,ff,00,f8,03,01,3b,07,03,04,06,%s,%s"
-const wind_direction_command = "%s,3,126720,%s,%s,16,3b,9f,f0,81,86,21,23,dc,00,00,00,00,00,00,ff,ff,ff,ff,ff",
+const wind_direction_command = "%s,3,126720,%s,%s,16,3b,9f,f0,81,86,21,23,dc,00,00,00,00,00,00,ff,ff,ff,ff,ff"
 const raymarine_ttw_Mode = "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
 const raymarine_ttw = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
 
@@ -57,7 +57,6 @@ module.exports = function(app) {
   var deviceid
   var pilot = {}
   var timers = []
-  var discovered
 
   pilot.start = (props) => {
     deviceid = props.deviceid
@@ -190,19 +189,14 @@ module.exports = function(app) {
 
   pilot.properties = () => {
     let defaultId = '115'
-    let description = 'Raymarine SmartPilot AP behind E22158 SeaTalk-STNG-Converter device ID (default 115)'
+    let description = 'The NMEA2000 ID of your E22158 SeaTalk-STNG-Converter device connected to the SmartPilot AP (default 115)'
       
     return {
-      deviceid: {
+      converterDeviceid: {
         type: "string",
-        title: "Raymarine NMEA2000 ID",
+        title: "Raymarine SeaTalk-STNG-Converter NMEA2000 ID",
         description,
         default: defaultId
-      },
-      controlHead: {
-        type: 'boolean',
-        title: 'Act as the Raymarine p70 control head (WARNING: unknown consequences)',
-        default: false
       }
     }
   }
