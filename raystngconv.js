@@ -49,6 +49,7 @@ const raymarine_silence =  "%s,7,65288,%s,255,8,3b,9f,%s,%s,00,00,00,00"
 
 const keep_alive = "%s,7,65384,%s,255,8,3b,9f,00,00,00,00,00,00"
 const keep_alive2 = "%s,7,126720,%s,255,7,3b,9f,f0,81,90,00,03"
+
 const default_src = '1'
 const autopilot_dst = '115' // default converter device id
 const everyone_dst = '255'
@@ -56,31 +57,12 @@ const everyone_dst = '255'
 module.exports = function(app) {
   var deviceid
   var pilot = {}
-  var timers = []
 
   pilot.start = (props) => {
-    deviceid = props.deviceid
-
-    if ( props.controlHead ) {
-      timers.push(setInterval(() => {
-        const msg = util.format(keep_alive, (new Date()).toISOString(),
-                                default_src)
-        app.emit('nmea2000out', msg)
-      }, 1000))
-      
-      timers.push(setInterval(() => {
-        const msg = util.format(keep_alive2, (new Date()).toISOString(),
-                                default_src)
-        app.debug('sending keep_alive: ' + msg)
-        app.emit('nmea2000out', msg)
-      }, 2000))
-    }
+    deviceid = props.converterDeviceId
   }
 
   pilot.stop = () => {
-    timers.forEach(timer => {
-      clearInterval(timer)
-    })
   }
 
   function sendN2k(msgs) {
@@ -188,15 +170,15 @@ module.exports = function(app) {
   }
 
   pilot.properties = () => {
-    let defaultId = '115'
+    let defaultConverId = '115'
     let description = 'The NMEA2000 ID of your E22158 SeaTalk-STNG-Converter device connected to the SmartPilot AP (default 115)'
       
     return {
-      converterDeviceid: {
+      converterDeviceId: {
         type: "string",
         title: "Raymarine SeaTalk-STNG-Converter NMEA2000 ID",
         description,
-        default: defaultId
+        default: defaultConverId
       }
     }
   }
