@@ -57,6 +57,7 @@ const everyone_dst = '255'
 module.exports = function(app) {
   var deviceid
   var pilot = {}
+  var discovered
 
   pilot.start = (props) => {
     deviceid = props.converterDeviceId
@@ -170,15 +171,36 @@ module.exports = function(app) {
   }
 
   pilot.properties = () => {
-    let defaultConverId = '115'
-    let description = 'The NMEA2000 ID of your E22158 SeaTalk-STNG-Converter device connected to the SmartPilot AP (default 115)'
+    let defaultConverterId = '115'
+    let description = 'No SeaTalk-STNG-Converter device found'
       
+    if ( !discovered ) {
+      const sources = app.getPath('/sources')
+      if ( sources ) {
+        _.values(sources).forEach(v => {
+          if ( typeof v === 'object' ) {
+            _.keys(v).forEach(id => {
+              if ( v[id] && v[id].n2k && v[id].n2k.hardwareVersion && v[id].n2k.hardwareVersion.startsWith('SeaTalk-STNG-Converter') ) {
+                discovered = id
+              }
+            })
+          }
+        })
+      }
+    }
+
+    if ( discovered ) {
+      converterDeviceId = discovered
+      description = `SeaTalk-STNG-Converter with id ${discovered} discovered`
+      app.debug(description)
+    }
+
     return {
       converterDeviceId: {
         type: "string",
         title: "Raymarine SeaTalk-STNG-Converter NMEA2000 ID",
         description,
-        default: defaultConverId
+        default: defaultConverterId
       }
     }
   }
@@ -234,6 +256,7 @@ function changeHeading(app, deviceid, command_json)
   {
     //error
   }
+
   if ( new_value )
   {
     new_value = Math.trunc(degsToRad(new_value) * 10000)

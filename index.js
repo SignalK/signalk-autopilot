@@ -103,7 +103,7 @@ module.exports = function(app) {
           ],
           enumNames: [
             'Raymarine NMEA2000',
-            'Raymarine E22158 SeaTalk-STNG-Converter -> SmartPilot AP',
+            'Raymarine SmartPilot -> SeaTalk-STNG-Converter',
             'Raymarine Seatalk 1 AP'
           ],
           default: 'raymarineN2K'
