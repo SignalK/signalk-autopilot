@@ -38,11 +38,18 @@ const keys_code = {
 
 const wind_direction_command = "10,01,%s,%s"
 const heading_command = "89,%s,%s,%s,%s"
+const wp_change = "82,05,%s,%s,%s,%s,%s,%s"
 const targetHeading = "89,%s,%s,$s,%s"
+const keep_alive = "90,00,A3" //identify as NMEA-ST bridge
+const raymarine_ttw_Mode = "85,06,00,VU,4W,06,10,00,FF"//1NM, vw mag heading
+const raymarine_ttw = "82,05,XX,xx,YY,yy,ZZ,zz"//wp name
 
 module.exports = function(app) {
   var outputEvent
   var pilot = {}
+  var timers = []
+  var msgs
+  var discovered
 
   pilot.start = (props) => {
     outputEvent = props.outputEvent
@@ -66,7 +73,7 @@ module.exports = function(app) {
     app.emit(outputEvent, sentence)
   }
 
-  pilot.putTargetHeading = (context, path, value) => {
+  pilot.putTargetHeading = (context, path, value, cb) => {
     var state = app.getSelfPath(state_path)
 
     if ( state !== 'auto' ) {
@@ -91,7 +98,7 @@ module.exports = function(app) {
     }
   }
 
-  pilot.putState = (context, path, value) => {
+  pilot.putState = (context, path, value, cb) => {
     if ( !state_commands[value] ) {
       return { message: `Invalid state: ${value}`, ...FAILURE_RES }
     } else {
@@ -101,7 +108,7 @@ module.exports = function(app) {
     }
   }
 
-  pilot.putTargetWind = (context, path, value)  => {
+  pilot.putTargetWind = (context, path, value, cb)  => {
     var state = app.getSelfPath(state_path)
 
     if ( state !== 'wind' ) {
@@ -127,7 +134,7 @@ module.exports = function(app) {
     }
   }
 
-  pilot.putAdjustHeading = (context, path, value)  => {
+  pilot.putAdjustHeading = (context, path, value, cb)  => {
     var state = app.getSelfPath(state_path)
 
     if ( state !== 'auto' && state != 'standby' && state != 'route') {
@@ -155,7 +162,7 @@ module.exports = function(app) {
     }
   }
 
-  pilot.putTack = (context, path, value)  => {
+  pilot.putTack = (context, path, value, cb)  => {
     var state = app.getSelfPath(state_path)
 
     if ( state !== 'wind' ) {
@@ -166,7 +173,7 @@ module.exports = function(app) {
     }
   }
 
-  pilot.putAdvanceWaypoint = ()  => {
+  pilot.putAdvanceWaypoint = (context, path, value, cb)  => {
     var state = app.getSelfPath(state_path)
 
     if ( state !== 'track' ) {
@@ -185,7 +192,9 @@ module.exports = function(app) {
   }
 
   pilot.properties = () => {
+    var eventList = []
     let defaultEvent = 'seatalkOut'
+
 
     return {
       outputEvent: {
@@ -198,6 +207,72 @@ module.exports = function(app) {
 
   return pilot
 }
+
+function padd(n, p, c)
+{
+  var pad_char = typeof c !== 'undefined' ? c : '0';
+  var pad = new Array(1 + p).join(pad_char);
+  return (pad + n).slice(-pad.length);
+}
+
+function changeHeading(app, outputEvent, command_json)
+{
+  var ammount = command_json["value"]
+  var state = app.getSelfPath(state_path)
+  var new_value
+  var command_format
+  var datagram
+
+  app.debug("changeHeading: " + state + " " + ammount)
+  if ( state == "auto" )
+  {
+    var current = app.getSelfPath(target_heading_path)
+    new_value = radsToDeg(current) + ammount
+
+    if ( new_value < 0 ) {
+      new_value = 360 + new_value
+    } else if ( new_value > 360 ) {
+      new_value = new_value - 360
+    }
+
+    app.debug(`current heading: ${radsToDeg(current)} new value: ${new_value}`)
+
+    command_format = heading_command
+  }
+  else if ( state == "wind" )
+  {
+    var current = app.getSelfPath(target_wind_path)
+    new_value = radsToDeg(current) + ammount
+
+    if ( new_value < 0 )
+      new_value = 360 + new_value
+    else if ( new_value > 360 )
+      new_value = new_value - 360
+
+    app.debug(`current wind angle: ${radsToDeg(current)} new value: ${new_value}`)
+    command_format = wind_direction_command
+  }
+  else
+  {
+    //error
+  }
+  if ( new_value )
+  {
+    new_value = Math.trunc(degsToRad(new_value) * 10000)
+    return // @TODO ??
+    /*
+    nmea0183_msgs = [util.format(command_format, (new Date()).toISOString(), default_src,
+                            autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))]
+    */
+  }
+  return datagram
+}
+
+function setState(app, outputEvent, command_json)
+{
+  var state = command_json["value"]
+  app.debug("setState: " + state)
+  return state_commands[state]}
 
 function tackTo(app, outputEvent, command_json)
 {
