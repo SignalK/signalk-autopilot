@@ -68,6 +68,12 @@ module.exports = function(app) {
 
     var sentence = toSentence([
       '$PSMDST',
+      datagram
+    ])
+    app.emit(outputEvent, sentence)
+      
+    var sentence = toSentence([
+      '$PSMDST',
       'C',
       datagram
     ])
