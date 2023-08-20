@@ -23,5 +23,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/SignalK/signalk-autopilot"
+  },
+  "signalk": {
+    "appIcon": "./appIcon-72x72.png",
+    "displayName": "Signal K autopilot"
   }
 }
