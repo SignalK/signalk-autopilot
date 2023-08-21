@@ -12,7 +12,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 const commands = {
   "auto": { "path": "steering.autopilot.state", "value": "auto" },
   "wind": { "path": "steering.autopilot.state", "value": "wind" },
@@ -29,7 +28,7 @@ const commands = {
 
 var notificationsArray = {};
 
-var touchEnd = function (event) {
+export function touchEnd(event) {
   event.currentTarget.onclick();
   event.preventDefault(true);
 }
@@ -40,6 +39,7 @@ var handleReceiveTimeout = null;
 var handleSilenceScreenTimeout = null;
 var handleConfirmActionTimeout = null;
 var handleCountDownCounterTimeout = null;
+var handleMessageAlertTimeout = null;
 var connected = false;
 var reconnect = true;
 const timeoutReconnect = 2000;
@@ -62,7 +62,7 @@ var bottomBarIconDiv = undefined;
 var notificationCounterDiv = undefined;
 var notificationCounterTextDiv = undefined;
 var silenceScreenDiv = undefined;
-var silenceScreenText = undefined;
+var silenceScreenTextDiv = undefined;
 var confirmScreenDiv = undefined;
 var remoteHelpDiv = undefined;
 var remoteMainDiv = undefined;
@@ -119,7 +119,7 @@ const originalElementsSize = {
   'remoteHelp': { width: 633, heigth: 693 }
 }
 
-var startUpAutoPilot = function () {
+export function startUpAutoPilot() {
   pilotStatusDiv = document.getElementById('pilotStatus');
   headingValueDiv = document.getElementById('headingValue');
   receiveIconDiv = document.getElementById('receiveIcon');
@@ -183,10 +183,10 @@ var demo = function () {
   countDownCounterDiv.innerHTML = countDownDefault.toString();
 }
 */
-var buildAndSendCommand = function (cmd) {
+export function buildAndSendCommand(cmd) {
   var cmdAction = commands[cmd];
   if (typeof cmdAction === 'undefined') {
-    alert('Unknown command !');
+    alertHtml('Unknown command !');
     return null;
   }
   if ((actionToBeConfirmed !== '') && (actionToBeConfirmed !== cmd)) {
@@ -219,7 +219,7 @@ var sendCommand = function (cmdAction) {
   wsConnect();
   if ((ws === null) || (ws.readyState !== 1)) {
     errorIconDiv.style.visibility = 'visible';
-    alert('Not connected yet, please retry your command...');
+    alertHtml('Not connected yet, please retry your command...');
     return null;
   }
   console.log(cmdAction);
@@ -240,7 +240,7 @@ var notificationToValue = function (skPathToAck) {
   return message;
 }
 
-var sendSilence = function () {
+export function sendSilence() {
   if (silenceScreenDiv.style.visibility !== 'visible') {
     silenceScreenDiv.style.visibility = 'visible';
     autoHideSilenceScreen();
@@ -259,7 +259,7 @@ var sendSilence = function () {
   silenceScreenTextDiv.innerHTML = notificationToValue(skPathToAck);
 }
 
-var notificationScroll = function () {
+export function notificationScroll() {
   autoHideSilenceScreen();
   if (silenceScreenDiv.style.visibility !== 'visible') {
     silenceScreenDiv.style.visibility = 'visible';
@@ -301,7 +301,7 @@ var getNextNotification = function (skPath) {
   return newSkPathToAck;
 }
 
-var changePreferedDisplayMode = function () {
+export function changePreferedDisplayMode() {
   const currentPreferedDisplayMode = preferedDisplayMode[pilotStatus];
   var pathForPilotStatus = [];
   if (typeof currentPreferedDisplayMode === 'undefined') { return null }
@@ -360,7 +360,6 @@ var clearConfirmCmd = function () {
   confirmScreenDiv.style.visibility = 'hidden';
   confirmScreenDiv.innerHTML = '';
   actionToBeConfirmed = '';
-  cmdConfirmed = false;
 }
 
 var wsConnect = function () {
@@ -446,10 +445,10 @@ var wsConnect = function () {
           if (jsonData.state === 'COMPLETED') {
             if (jsonData.statusCode === 403) {
               errorIconDiv.style.visibility = 'visible';
-              alert('[' + jsonData.statusCode + ']' + 'You must be authenticated to send command');
+              alertHtml('[' + jsonData.statusCode + ']' + 'You must be authenticated to send command');
             } else if (jsonData.statusCode !== 200) {
               errorIconDiv.style.visibility = 'visible';
-              alert('[' + jsonData.statusCode + ']' + jsonData.message);
+              alertHtml('[' + jsonData.statusCode + ']' + jsonData.message);
             }
           }
           console.log(jsonData);
@@ -576,14 +575,14 @@ var setNotificationMessage = function (value) {
   }
 }
 
-var displayHelp = function () {
+export function displayHelp() {
   if (remoteMainDiv.style.visibility !== 'hidden') {
     remoteMainDiv.style.visibility = 'hidden';
     remoteMainDiv.style.display = 'none';
 
     remoteHelpDiv.style.visibility = 'visible';
     remoteHelpDiv.style.display = 'block';
-    remoteHelpDiv.innerHTML = '<img src="img/GUI-help.png" onclick="displayHelp();">';
+    remoteHelpDiv.innerHTML = '<img src="img/GUI-help.png" onclick="autopilot.displayHelp();">';
     updateMainSize()
   } else {
     remoteHelpDiv.style.visibility = 'hidden';
@@ -596,7 +595,7 @@ var displayHelp = function () {
   }
 }
 
-var wsOpenClose = function () {
+export function wsOpenClose() {
   if (connected === false) {
     wsConnect();
   } else {
@@ -662,8 +661,21 @@ function updateMainSize() {
     pageWidth / originalElementsSize[visibleElId].width,
     pageHeigth / originalElementsSize[visibleElId].heigth
   );
-  xOffset = ((pageWidth - (originalElementsSize[visibleElId].width * scale))) / 2;
+  var xOffset = ((pageWidth - (originalElementsSize[visibleElId].width * scale))) / 2;
   mainDiv.style.transform = "scale(" + scale + ")";
   mainDiv.style.transformOrigin = "0px 0px";
   mainDiv.style.marginLeft = xOffset + "px";
+}
+
+function alertHtml(message) {
+  confirmScreenDiv.innerHTML = '<p>' + message + '</p>';
+  confirmScreenDiv.style.visibility = 'visible';
+  confirmScreenDiv.style.color = 'red';
+  clearTimeout(handleMessageAlertTimeout);
+  handleMessageAlertTimeout = setTimeout(() => {
+    confirmScreenDiv.style.visibility = 'hidden';
+    confirmScreenDiv.innerHTML = '';
+    confirmScreenDiv.style.color = 'black';
+  }, 5000);
+
 }

@@ -6,7 +6,10 @@
   "scripts": {
     "test": "$NODE $npm_package_main",
     "create-release": "github-create-release --owner signalk --repository signalk-autopilot",
-    "release": "git tag -d v$npm_package_version; git tag v$npm_package_version && git push --tags && git push && npm run create-release"
+    "release": "git tag -d v$npm_package_version; git tag v$npm_package_version && git push --tags && git push && npm run create-release",
+    "start": "webpack serve --config webpack.dev.config.js",
+    "build": "webpack --config webpack.prod.config.js --progress",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "signalk-node-server-plugin",
@@ -18,7 +21,13 @@
     "lodash": "^4.17.15"
   },
   "devDependencies": {
-    "@signalk/github-create-release": "^1.0.1"
+    "@signalk/github-create-release": "^1.0.1",
+    "copy-webpack-plugin": "^11.0.0",
+    "html-minimizer-webpack-plugin": "^4.4.0",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "webpack-merge": "^5.9.0"
   },
   "repository": {
     "type": "git",
