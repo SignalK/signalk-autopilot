@@ -2,10 +2,11 @@ body,
 html {
   margin: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 #main {
-  margin: auto;
+  margin: 0px;
   width: 100vw;
   height: 100vh;
   background-repeat: no-repeat;
@@ -13,11 +14,11 @@ html {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  -webkit-tap-highlight-color: rgba(0,0,0,0);
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 
 .bgRemoteMain {
-  margin: auto;
+  margin: 0px;
   width: 238px;
   height: 612px;
   position: relative;
@@ -29,6 +30,7 @@ html {
   height: 70px;
   background-image: url("../img/btnCircleWithDotRed.png");
 }
+
 .btnCircleWithDotRed:active {
   background-position-x: -70px;
 }
@@ -38,6 +40,7 @@ html {
   height: 70px;
   background-image: url("../img/btnCircleRed.png");
 }
+
 .btnCircleRed:active {
   background-position-x: -70px;
 }
@@ -48,6 +51,7 @@ html {
   background-image: url("../img/btnLeftBlack.png");
   background-size: 100px;
 }
+
 .btnLeftBlack:active {
   background-position-x: -50px;
 }
@@ -58,6 +62,7 @@ html {
   background-image: url("../img/btnRightBlack.png");
   background-size: 100px;
 }
+
 .btnRightBlack:active {
   background-position-x: -50px;
 }
@@ -70,6 +75,7 @@ html {
   background-image: url("../img/btnTopBlack.png");
   background-size: 55px;
 }
+
 .btnTopBlack:active {
   background-position-y: -50px;
 }
@@ -82,6 +88,7 @@ html {
   background-image: url("../img/btnBottomBlack.png");
   background-size: 55px;
 }
+
 .btnBottomBlack:active {
   background-position-y: -50px;
 }
@@ -92,6 +99,7 @@ html {
   background-image: url("../img/btnTopSmallBlack.png");
   background-size: 104px;
 }
+
 .btnTopSmallBlack:active {
   background-position-x: -52px;
 }
@@ -102,6 +110,7 @@ html {
   background-image: url("../img/btnBottomSmallBlack.png");
   background-size: 104px;
 }
+
 .btnBottomSmallBlack:active {
   background-position-x: -52px;
 }
@@ -121,8 +130,8 @@ html {
 }
 
 #remoteMain {
-  visibility: visible;
-  display: block;
+  visibility: hidden;
+  display: none;
 }
 
 #remoteHelp {
@@ -206,16 +215,16 @@ html {
 #sendIcon {
   left: 120px;
   background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAQAAAD8x0bcAAAACXBIWXMAAC4jAAAuIwF4pT92AAAAyklEQVQoz8XOIU4DARCF4Y+iIO02IeAxCERFRRWFW+DgAAjugK8gNXCFUlQNWHQNBDD1yGZTgmw3g9jNssmGSphR8+bN/I8/rc2aMnDkaf3RQAhX6ywtUyFMtX6z7IFDB5WpBvp0Xk5nvurQxEwIC89eLIQwk1Qtu2i7lYmiV260i00BmuuBpr5LF/qaoGeeQxPvwsrYsUb5u+HEnUx4y6FbxgUk9eDa0KO0UEa2f1J1TSzLRCEsTXTz5UYl/o5THfsyH17dS/1PfQMplUPMhfqpHwAAAABJRU5ErkJggg==);
-  transform:scaleY(-1);
+  transform: scaleY(-1);
 }
 
 #receiveIcon {
-  left: 100px;
+  left: 102px;
   background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAQAAAD8x0bcAAAACXBIWXMAAC4jAAAuIwF4pT92AAAAyklEQVQoz8XOIU4DARCF4Y+iIO02IeAxCERFRRWFW+DgAAjugK8gNXCFUlQNWHQNBDD1yGZTgmw3g9jNssmGSphR8+bN/I8/rc2aMnDkaf3RQAhX6ywtUyFMtX6z7IFDB5WpBvp0Xk5nvurQxEwIC89eLIQwk1Qtu2i7lYmiV260i00BmuuBpr5LF/qaoGeeQxPvwsrYsUb5u+HEnUx4y6FbxgUk9eDa0KO0UEa2f1J1TSzLRCEsTXTz5UYl/o5THfsyH17dS/1PfQMplUPMhfqpHwAAAABJRU5ErkJggg==);
 }
 
 #errorIcon {
-  left: 80px;
+  left: 85px;
   background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAQAAAD8x0bcAAAAwElEQVR4AZXRtXUDMBQAwOvDjaEMwwBhWiE0RKiy9wiWYc4W3iSoGcKRS71n9qmU9FH7+izbtWVZr5pyHsR0PMiqMOjdp2MDYMCxT++GSfKCYILEhOBVHoAbf+YA+/YBc/5cA/T4dwagpATg1L8eYFU0XfPRlGgDKIi6az7qFhWAoqgTlTXRKSoC61I6gJRuPRV+XjPSWSqcK/9mVD6a8e+qcphjSMYEQZZkyJvKtTwbUiHvsdmCgV7Ldu1a1qtdZTafSCFQvo25AAAAAElFTkSuQmCC);
 }
 
@@ -282,7 +291,7 @@ html {
   font-weight: bold;
 }
 
-#silenceScreenScroll{
+#silenceScreenScroll {
   position: relative;
   top: 0px;
   left: 0px;
@@ -315,6 +324,7 @@ html {
   top: 296px;
   right: 20px;
 }
+
 #keyPlusOneText {
   top: 16px;
 }
@@ -323,6 +333,7 @@ html {
   top: 296px;
   left: 20px;
 }
+
 #keyMinusOneText {
   top: 16px;
 }
@@ -331,6 +342,7 @@ html {
   top: 296px;
   right: 68px;
 }
+
 #keyPlusTenText {
   top: 16px;
 }
@@ -339,6 +351,7 @@ html {
   top: 296px;
   left: 68px;
 }
+
 #keyMinusTenText {
   top: 16px;
 }
@@ -347,6 +360,7 @@ html {
   top: 362px;
   left: 28px;
 }
+
 #keyMuteText {
   top: 10px;
   width: 20px;
@@ -360,6 +374,7 @@ html {
   top: 362px;
   right: 28px;
 }
+
 #keyScrollText {
   top: 10px;
   width: 20px;
@@ -373,6 +388,7 @@ html {
   top: 500px;
   right: 28px;
 }
+
 #keyPowerText {
   top: 10px;
   width: 20px;
@@ -386,6 +402,7 @@ html {
   top: 486px;
   left: 84px;
 }
+
 #keyStandbyText {
   top: 28px;
   font-size: 10px;
@@ -395,6 +412,7 @@ html {
   top: 418px;
   left: 26px;
 }
+
 #keyAutoText {
   top: 28px;
   font-size: 10px;
@@ -404,6 +422,7 @@ html {
   top: 356px;
   left: 84px;
 }
+
 #keyWindText {
   top: 28px;
   font-size: 10px;
@@ -413,6 +432,7 @@ html {
   top: 418px;
   right: 26px;
 }
+
 #keyTrackText {
   top: 28px;
   font-size: 10px;
@@ -428,6 +448,7 @@ html {
   left: 38px;
   z-index: 1;
 }
+
 #keyTackPortText {
   top: 16px;
   width: 25px;
@@ -441,6 +462,7 @@ html {
   right: 38px;
   z-index: 1;
 }
+
 #keyTackStarbordText {
   top: 16px;
   width: 25px;
@@ -453,6 +475,7 @@ html {
   top: 500px;
   left: 28px;
 }
+
 #keyHelpText {
   top: 10px;
   width: 20px;
