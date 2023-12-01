@@ -74,6 +74,8 @@ module.exports = function(app) {
     app.registerPutHandler('vessels.self',
                            advance,
                            autopilot.putAdvanceWaypoint)
+
+    registerProvider(props.type)
   }
 
   plugin.stop = function() {
@@ -117,6 +119,116 @@ module.exports = function(app) {
       }
     })
     return config
+  }
+
+  // register with Autopilot API
+  const registerProvider = (apType)=> {
+    app.debug('**** registerProvider *****')
+    try {
+      app.registerAutopilotProvider(
+        {
+          getData: async (deviceId) => {
+            const apState = app.getSelfPath(state_path)
+            return {
+              options: {
+                states: [
+                  {name: 'auto', engaged: true},
+                  {name: 'wind', engaged: true},
+                  {name: 'route', engaged: true},
+                  {name: 'standby', engaged: false}
+                ],
+                modes: []
+              },
+              mode: null,
+              state: apState ?? null,
+              engaged: ['auto','wind','route'].includes(apState) ? true : false
+            }
+          },
+          getState: async (deviceId) => {
+            return app.getSelfPath(state_path) ?? null
+          },
+          setState: async (
+            state,
+            deviceId
+          ) => {
+            const r = autopilot.putState(undefined, undefined, state, undefined)
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message)
+            }
+            else {
+              return state === 'standby' ? false : true
+            }
+          },
+          getMode: async (deviceId) => {
+            throw new Error('Not implemented!')
+          },
+          setMode: async (mode, deviceId) => {
+            throw new Error('Not implemented!')
+          },
+          getTarget: async (deviceId) => {
+            throw new Error('Not implemented!')
+          },
+          setTarget: async (value, deviceId) => {
+            const apState = app.getSelfPath(state_path)
+            const deg = value * (180 / Math.PI)
+            if ( apState === 'auto' ) {
+              const r = autopilot.putTargetHeading(undefined, undefined, deg, undefined)
+              if (r.state === 'FAILURE') {
+                throw new Error(r.message)
+              }
+            } else if ( apState === 'wind' ) {
+              const r = autopilot.putTargetWind(undefined, undefined, deg, undefined)
+              if (r.state === 'FAILURE') {
+                throw new Error(r.message)
+              }
+            }
+            return
+          },
+          adjustTarget: async (
+            value,
+            deviceId
+          ) => {
+            const deg = value * (180 / Math.PI)
+            const r = autopilot.putAdjustHeading(undefined, undefined, deg, undefined)
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message)
+            }
+            return
+          },
+          engage: async (deviceId) => {
+            const r = autopilot.putState(undefined, undefined, 'auto', undefined)
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message) 
+            }
+            return
+          },
+          disengage: async (deviceId) => {
+            const r = autopilot.putState(undefined, undefined, 'standby', undefined)
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message)
+            }
+            return
+          },
+          tack: async (
+            direction,
+            deviceId
+          ) => {
+            const r = autopilot.putTack(undefined, undefined, 'direction', undefined)
+            if (r.state === 'FAILURE') { throw new Error(r.message) }
+            return
+          },
+          gybe: async (
+            direction,
+            deviceId
+          ) => {
+            throw new Error('Not implemented!')
+          }
+        },
+        [apType]
+      )
+    } catch (error) {
+      app.debug(error)
+    }
   }
 
   return plugin;
