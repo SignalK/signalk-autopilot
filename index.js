@@ -22,11 +22,7 @@ const adjust_heading = "steering.autopilot.actions.adjustHeading"
 const tack = "steering.autopilot.actions.tack"
 const advance = "steering.autopilot.actions.advanceWaypoint"
 
-const types  = {
-  raymarineST: require('./raymarinest'),
-  raySTNGConv: require('./raystngconv'),
-  raymarineN2K: require('./raymarinen2k')
-}
+
 
 module.exports = function(app) {
   var plugin = {}
@@ -34,6 +30,12 @@ module.exports = function(app) {
   var autopilot
   var pilots = {}
 
+  const types  = {
+  	raymarineST: require('./raymarinest'),
+  	raySTNGConv: require('./raystngconv'),
+  	raymarineN2K: require('./raymarinen2k')
+  }
+  
   _.keys(types).forEach( type => {
     const module = types[type]
     //console.log(`${type}: ${module}`)
