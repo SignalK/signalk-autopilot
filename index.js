@@ -34,6 +34,8 @@ module.exports = function(app) {
   var autopilot
   var pilots = {}
 
+  let apType = '' // autopilot type
+
   _.keys(types).forEach( type => {
     const module = types[type]
     //console.log(`${type}: ${module}`)
@@ -47,7 +49,7 @@ module.exports = function(app) {
   })
 
   plugin.start = function(props) {
-
+    apType= props.type
     autopilot = pilots[props.type]
     autopilot.start(props)
 
@@ -75,7 +77,7 @@ module.exports = function(app) {
                            advance,
                            autopilot.putAdvanceWaypoint)
 
-    registerProvider(props.type)
+    registerProvider()
   }
 
   plugin.stop = function() {
@@ -122,7 +124,10 @@ module.exports = function(app) {
   }
 
   // register with Autopilot API
-  const registerProvider = (apType)=> {
+  const registerProvider = ()=> {
+    app.debug('**** intialise n2k listener *****')
+    app.on('N2KAnalyzerOut', onStreamEvent)
+
     app.debug('**** registerProvider *****')
     try {
       app.registerAutopilotProvider(
@@ -229,6 +234,114 @@ module.exports = function(app) {
     } catch (error) {
       app.debug(error)
     }
+  }
+
+  // parse NMEA2000 stream input
+  const onStreamEvent = (evt) => {
+    // in-scope PGNs
+    const pgns = [
+      65345, 65360, 65379, 
+      65288,
+      127237
+    ]
+    
+    // out-of-scope PGNs
+    if (!pgns.includes(evt.pgn)) {
+      return
+    }
+   
+    // 127237 `Heading / Track control (Rudder, etc.)`
+    if (evt.pgn === 127237) { 
+      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+    }
+
+    // 65288 = notifications.autopilot.<alarmName>
+    if (evt.pgn === 65288) { 
+      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+      if (evt.fields['Manufacturer Code'] !== 'Raymarine'
+        || typeof evt.fields['Alarm Group'] === 'Autopilot'
+        || typeof evt.fields['Alarm Status'] === 'undefined') {
+        return
+      }
+ 
+      const method = [ 'visual' ]
+      let state = evt.fields['Alarm Status']
+      if ( state === 'Alarm condition met and not silenced' ) {
+        method.push('sound')
+      }
+      if ( state === 'Alarm condition not met' ) {
+        state = 'normal'
+      } else {
+        state = 'alarm'
+      }
+
+      let alarmName = evt.fields['Alarm ID']
+      if ( typeof alarmName !== 'string' ) {
+        alarmName = `Unknown Seatalk Alarm ${alarmName}`
+      } else if ( state === 'alarm' && (
+                    alarmName === 'WP Arrival'
+                    || alarmName ===  'Pilot Way Point Advance'
+                    || alarmName === 'Pilot Route Complete'
+                  )   
+                ) {
+        state = 'alert'
+      }
+      
+      const path = evt.fields['Alarm Group'].toLowerCase().replace(/ /g, '')  + '.' + alarmName.replace(/ /g, '')
+      
+      app.debug('notifications.' + path)
+      app.debug({
+        message: alarmName,
+        method: method,
+        state: state
+      })
+    }
+
+    // 65345 = 'steering.autopilot.target.windAngleApparent'
+    if (evt.pgn === 65345) { 
+      app.debug('n2k pgn=', evt.pgn, evt.description)
+      let angle = evt.fields['Wind Datum'] ? Number(evt.fields['Wind Datum']) : null
+      angle = ( typeof angle === 'number' && angle > Math.PI ) ? angle-(Math.PI*2) : angle
+      app.autopilotUpdate(apType, 'target', angle)
+    }
+
+    // 65360 = 'steering.autopilot.target.headingTrue'
+    if (evt.pgn === 65360) { 
+      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+      const targetTrue = evt.fields['Target Heading True'] ? Number(evt.fields['Target Heading True']) : null
+      const targetMagnetic = evt.fields['Target Heading Magnetic'] ? Number(evt.fields['Target Heading Magnetic']) : null
+      const target = typeof targetTrue === 'number' ? targetTrue :
+        typeof targetMagnetic === 'number' ? targetMagnetic: null
+      app.autopilotUpdate(apType, 'target', target)
+    }
+    
+    // 65379 = 'steering.autopilot.state'
+    if (evt.pgn === 65379) { 
+      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+      const mode = evt.fields['Pilot Mode'] ? Number(evt.fields['Pilot Mode']) : null
+      const subMode = evt.fields['Sub Mode'] ? Number(evt.fields['Sub Mode']) : null
+      if ( mode === 0 && subMode === 0 ) {
+        app.autopilotUpdate(apType, 'state', 'standby')
+        app.autopilotUpdate(apType, 'engaged', false)
+      }
+      else if ( mode == 0 && subMode == 1 ) {
+        app.autopilotUpdate(apType, 'state', 'wind')
+        app.autopilotUpdate(apType, 'engaged', true)
+      }
+      else if ( (mode == 128 || mode == 129) && subMode == 1 ) {
+        app.autopilotUpdate(apType, 'state', 'route')
+        app.autopilotUpdate(apType, 'engaged', true)
+      }
+      else if ( mode == 64 && subMode == 0 ) {
+        app.autopilotUpdate(apType, 'state', 'auto')
+        app.autopilotUpdate(apType, 'engaged', true)
+      }
+      else {
+        app.autopilotUpdate(apType, 'state', 'standby')
+        app.autopilotUpdate(apType, 'engaged', false)
+      }
+    }
+
   }
 
   return plugin;
