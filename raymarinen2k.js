@@ -53,12 +53,14 @@ const everyone_dst = '255'
 
 module.exports = function(app) {
   var deviceid
-  var pilot = {}
+  var pilot = {id: null}
   var timers = []
   var discovered
 
   pilot.start = (props) => {
     deviceid = props.deviceid
+    pilot.id = Number(deviceid)
+    app.debug('props.deviceid:', deviceid)
 
     if ( props.controlHead ) {
       timers.push(setInterval(() => {
@@ -212,6 +214,8 @@ module.exports = function(app) {
       description = `Discovered an EV-1 with id ${discovered}`
       app.debug(description)
     }
+
+    defaultId = pilot.id ?? defaultId
       
     return {
       deviceid: {

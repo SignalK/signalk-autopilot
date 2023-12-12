@@ -56,11 +56,13 @@ const everyone_dst = '255'
 
 module.exports = function(app) {
   var deviceid
-  var pilot = {}
+  var pilot = {id: null}
   var discovered
 
   pilot.start = (props) => {
     deviceid = props.converterDeviceId
+    pilot.id = Number(deviceid)
+    app.debug('props.converterDeviceId:', deviceid)
   }
 
   pilot.stop = () => {
@@ -194,6 +196,8 @@ module.exports = function(app) {
       description = `SeaTalk-STNG-Converter with id ${discovered} discovered`
       app.debug(description)
     }
+
+    defaultConverterId = pilot.id ?? defaultConverterId
 
     return {
       converterDeviceId: {

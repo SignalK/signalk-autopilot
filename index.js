@@ -52,6 +52,7 @@ module.exports = function(app) {
     apType= props.type
     autopilot = pilots[props.type]
     autopilot.start(props)
+    app.debug('autopilot.id:', autopilot.id, apType)
 
     app.registerPutHandler('vessels.self',
                            state_path,
@@ -123,7 +124,7 @@ module.exports = function(app) {
     return config
   }
 
-  // register with Autopilot API
+  // Autopilot API - register with Autopilot API
   const registerProvider = ()=> {
     app.debug('**** intialise n2k listener *****')
     app.on('N2KAnalyzerOut', onStreamEvent)
@@ -236,7 +237,7 @@ module.exports = function(app) {
     }
   }
 
-  // parse NMEA2000 stream input
+  // Autopilot API - parse NMEA2000 stream input
   const onStreamEvent = (evt) => {
     // in-scope PGNs
     const pgns = [
@@ -244,9 +245,8 @@ module.exports = function(app) {
       65288,
       127237
     ]
-    
-    // out-of-scope PGNs
-    if (!pgns.includes(evt.pgn)) {
+   
+    if (!pgns.includes(evt.pgn) || evt.src !== autopilot.id) {
       return
     }
    
@@ -256,8 +256,7 @@ module.exports = function(app) {
     }
 
     // 65288 = notifications.autopilot.<alarmName>
-    if (evt.pgn === 65288) { 
-      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+    if (evt.pgn === 65288) {
       if (evt.fields['Manufacturer Code'] !== 'Raymarine'
         || typeof evt.fields['Alarm Group'] === 'Autopilot'
         || typeof evt.fields['Alarm Status'] === 'undefined') {
@@ -297,17 +296,15 @@ module.exports = function(app) {
       })
     }
 
-    // 65345 = 'steering.autopilot.target.windAngleApparent'
-    if (evt.pgn === 65345) { 
-      app.debug('n2k pgn=', evt.pgn, evt.description)
+    // 65345 = 'steering.autopilot.target (windAngleApparent)'
+    if (evt.pgn === 65345) {
       let angle = evt.fields['Wind Datum'] ? Number(evt.fields['Wind Datum']) : null
       angle = ( typeof angle === 'number' && angle > Math.PI ) ? angle-(Math.PI*2) : angle
       app.autopilotUpdate(apType, 'target', angle)
     }
 
-    // 65360 = 'steering.autopilot.target.headingTrue'
-    if (evt.pgn === 65360) { 
-      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+    // 65360 = 'steering.autopilot.target (true/magnetic)'
+    if (evt.pgn === 65360) {
       const targetTrue = evt.fields['Target Heading True'] ? Number(evt.fields['Target Heading True']) : null
       const targetMagnetic = evt.fields['Target Heading Magnetic'] ? Number(evt.fields['Target Heading Magnetic']) : null
       const target = typeof targetTrue === 'number' ? targetTrue :
@@ -315,9 +312,8 @@ module.exports = function(app) {
       app.autopilotUpdate(apType, 'target', target)
     }
     
-    // 65379 = 'steering.autopilot.state'
-    if (evt.pgn === 65379) { 
-      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+    // 65379 = 'steering.autopilot.state', 'steering.autopilot.engaged'
+    if (evt.pgn === 65379) {
       const mode = evt.fields['Pilot Mode'] ? Number(evt.fields['Pilot Mode']) : null
       const subMode = evt.fields['Sub Mode'] ? Number(evt.fields['Sub Mode']) : null
       if ( mode === 0 && subMode === 0 ) {
