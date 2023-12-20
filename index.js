@@ -52,7 +52,7 @@ module.exports = function(app) {
     apType= props.type
     autopilot = pilots[props.type]
     autopilot.start(props)
-    app.debug('autopilot.id:', autopilot.id, apType)
+    app.debug('autopilot.id:', autopilot.id, 'autopilot.type:', apType)
 
     app.registerPutHandler('vessels.self',
                            state_path,
@@ -246,7 +246,7 @@ module.exports = function(app) {
       127237
     ]
    
-    if (!pgns.includes(evt.pgn) || evt.src !== autopilot.id) {
+    if (!pgns.includes(evt.pgn) || String(evt.src) !== autopilot.id) {
       return
     }
    

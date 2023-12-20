@@ -59,7 +59,7 @@ module.exports = function(app) {
 
   pilot.start = (props) => {
     deviceid = props.deviceid
-    pilot.id = Number(deviceid)
+    pilot.id = deviceid
     app.debug('props.deviceid:', deviceid)
 
     if ( props.controlHead ) {
@@ -189,8 +189,10 @@ module.exports = function(app) {
   }
 
   pilot.properties = () => {
-    let defaultId = '205'
+    let defaultId = deviceid ?? '205'
     let description = 'No EV-1 Found'
+
+    app.debug('***pre-discovery -> defaultId', defaultId)
 
     if ( !discovered ) {
       //let full = app.deltaCache.buildFull(undefined, [ 'sources' ])
@@ -215,7 +217,8 @@ module.exports = function(app) {
       app.debug(description)
     }
 
-    defaultId = pilot.id ?? defaultId
+    pilot.id = defaultId
+    app.debug('*** post-discovery -> defaultId', defaultId)
       
     return {
       deviceid: {

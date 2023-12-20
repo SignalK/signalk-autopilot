@@ -61,7 +61,7 @@ module.exports = function(app) {
 
   pilot.start = (props) => {
     deviceid = props.converterDeviceId
-    pilot.id = Number(deviceid)
+    pilot.id = deviceid
     app.debug('props.converterDeviceId:', deviceid)
   }
 
@@ -173,8 +173,10 @@ module.exports = function(app) {
   }
 
   pilot.properties = () => {
-    let defaultConverterId = '115'
+    let defaultConverterId = deviceid ?? '115'
     let description = 'No SeaTalk-STNG-Converter device found'
+
+    app.debug('***pre-discovery -> defaultConverterId', defaultConverterId)
       
     if ( !discovered ) {
       const sources = app.getPath('/sources')
@@ -192,12 +194,13 @@ module.exports = function(app) {
     }
 
     if ( discovered ) {
-      converterDeviceId = discovered
+      defaultConverterId = discovered
       description = `SeaTalk-STNG-Converter with id ${discovered} discovered`
       app.debug(description)
     }
 
-    defaultConverterId = pilot.id ?? defaultConverterId
+    pilot.id = defaultConverterId
+    app.debug('*** post-discovery -> defaultConverterId', defaultConverterId)
 
     return {
       converterDeviceId: {
