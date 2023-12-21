@@ -264,36 +264,43 @@ module.exports = function(app) {
       }
  
       const method = [ 'visual' ]
+
       let state = evt.fields['Alarm Status']
       if ( state === 'Alarm condition met and not silenced' ) {
         method.push('sound')
       }
+
       if ( state === 'Alarm condition not met' ) {
         state = 'normal'
       } else {
         state = 'alarm'
       }
 
-      let alarmName = evt.fields['Alarm ID']
-      if ( typeof alarmName !== 'string' ) {
-        alarmName = `Unknown Seatalk Alarm ${alarmName}`
-      } else if ( state === 'alarm' && (
-                    alarmName === 'WP Arrival'
-                    || alarmName ===  'Pilot Way Point Advance'
-                    || alarmName === 'Pilot Route Complete'
-                  )   
-                ) {
+      let alarmId = evt.fields['Alarm ID']
+
+      if ( typeof alarmId !== 'string' ) {
+        alarmId = `Unknown Seatalk Alarm ${alarmId}`
+      } else if ( 
+        state === 'alarm' &&
+          ['WP Arrival','Pilot Way Point Advance','Pilot Route Complete'].includes(alarmId)
+        ) {
         state = 'alert'
       }
-      
-      const path = evt.fields['Alarm Group'].toLowerCase().replace(/ /g, '')  + '.' + alarmName.replace(/ /g, '')
-      
-      app.debug('notifications.' + path)
-      app.debug({
+
+      // normalise alarm name
+      let alarmName = normaliseAlarmId(alarmId)
+      if (!alarmName) {
+        app.debug(`*** Normalise Alarm Failed: ${alarmId}`)
+        return
+      }
+
+      const msg = {
         message: alarmName,
         method: method,
         state: state
-      })
+      }
+
+      app.autopilotAlarm(apType, alarmName, msg)
     }
 
     // 65345 = 'steering.autopilot.target (windAngleApparent)'
@@ -338,6 +345,20 @@ module.exports = function(app) {
       }
     }
 
+  }
+
+  // normalise SK alarm path 
+  const normaliseAlarmId = (id) => {
+    switch (id) {
+      case 'WP Arrival':
+        return 'waypointArrival'
+      case 'Pilot Way Point Advance':
+        return 'waypointAdvance'
+      case 'Pilot Route Complete':
+        return 'routeComplete'
+      default:
+        return ''
+    }
   }
 
   return plugin;
