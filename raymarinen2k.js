@@ -53,12 +53,14 @@ const everyone_dst = '255'
 
 module.exports = function(app) {
   var deviceid
-  var pilot = {}
+  var pilot = {id: null}
   var timers = []
   var discovered
 
   pilot.start = (props) => {
     deviceid = props.deviceid
+    pilot.id = deviceid
+    app.debug('props.deviceid:', deviceid)
 
     if ( props.controlHead ) {
       timers.push(setInterval(() => {
@@ -187,8 +189,10 @@ module.exports = function(app) {
   }
 
   pilot.properties = () => {
-    let defaultId = '205'
+    let defaultId = deviceid ?? '205'
     let description = 'No EV-1 Found'
+
+    app.debug('***pre-discovery -> defaultId', defaultId)
 
     if ( !discovered ) {
       //let full = app.deltaCache.buildFull(undefined, [ 'sources' ])
@@ -212,6 +216,9 @@ module.exports = function(app) {
       description = `Discovered an EV-1 with id ${discovered}`
       app.debug(description)
     }
+
+    pilot.id = defaultId
+    app.debug('*** post-discovery -> defaultId', defaultId)
       
     return {
       deviceid: {
