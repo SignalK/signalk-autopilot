@@ -34,6 +34,8 @@ module.exports = function(app) {
   var autopilot
   var pilots = {}
 
+  let apType = '' // autopilot type
+
   _.keys(types).forEach( type => {
     const module = types[type]
     //console.log(`${type}: ${module}`)
@@ -47,9 +49,10 @@ module.exports = function(app) {
   })
 
   plugin.start = function(props) {
-
+    apType= props.type
     autopilot = pilots[props.type]
     autopilot.start(props)
+    app.debug('autopilot.id:', autopilot.id, 'autopilot.type:', apType)
 
     app.registerPutHandler('vessels.self',
                            state_path,
@@ -74,6 +77,8 @@ module.exports = function(app) {
     app.registerPutHandler('vessels.self',
                            advance,
                            autopilot.putAdvanceWaypoint)
+
+    registerProvider()
   }
 
   plugin.stop = function() {
@@ -117,6 +122,243 @@ module.exports = function(app) {
       }
     })
     return config
+  }
+
+  // Autopilot API - register with Autopilot API
+  const registerProvider = ()=> {
+    app.debug('**** intialise n2k listener *****')
+    app.on('N2KAnalyzerOut', onStreamEvent)
+
+    app.debug('**** registerProvider *****')
+    try {
+      app.registerAutopilotProvider(
+        {
+          getData: async (deviceId) => {
+            const apState = app.getSelfPath(state_path)
+            return {
+              options: {
+                states: [
+                  {name: 'auto', engaged: true},
+                  {name: 'wind', engaged: true},
+                  {name: 'route', engaged: true},
+                  {name: 'standby', engaged: false}
+                ],
+                modes: []
+              },
+              mode: null,
+              state: apState ?? null,
+              engaged: ['auto','wind','route'].includes(apState) ? true : false
+            }
+          },
+          getState: async (deviceId) => {
+            return app.getSelfPath(state_path) ?? null
+          },
+          setState: async (
+            state,
+            deviceId
+          ) => {
+            const r = autopilot.putState(undefined, undefined, state, undefined)
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message)
+            }
+            else {
+              return state === 'standby' ? false : true
+            }
+          },
+          getMode: async (deviceId) => {
+            throw new Error('Not implemented!')
+          },
+          setMode: async (mode, deviceId) => {
+            throw new Error('Not implemented!')
+          },
+          getTarget: async (deviceId) => {
+            throw new Error('Not implemented!')
+          },
+          setTarget: async (value, deviceId) => {
+            const apState = app.getSelfPath(state_path)
+            const deg = value * (180 / Math.PI)
+            if ( apState === 'auto' ) {
+              const r = autopilot.putTargetHeading(undefined, undefined, deg, undefined)
+              if (r.state === 'FAILURE') {
+                throw new Error(r.message)
+              }
+            } else if ( apState === 'wind' ) {
+              const r = autopilot.putTargetWind(undefined, undefined, deg, undefined)
+              if (r.state === 'FAILURE') {
+                throw new Error(r.message)
+              }
+            }
+            return
+          },
+          adjustTarget: async (
+            value,
+            deviceId
+          ) => {
+            const deg = value * (180 / Math.PI)
+            const r = autopilot.putAdjustHeading(undefined, undefined, deg, undefined)
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message)
+            }
+            return
+          },
+          engage: async (deviceId) => {
+            const r = autopilot.putState(undefined, undefined, 'auto', undefined)
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message) 
+            }
+            return
+          },
+          disengage: async (deviceId) => {
+            const r = autopilot.putState(undefined, undefined, 'standby', undefined)
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message)
+            }
+            return
+          },
+          tack: async (
+            direction,
+            deviceId
+          ) => {
+            const r = autopilot.putTack(undefined, undefined, 'direction', undefined)
+            if (r.state === 'FAILURE') { throw new Error(r.message) }
+            return
+          },
+          gybe: async (
+            direction,
+            deviceId
+          ) => {
+            throw new Error('Not implemented!')
+          }
+        },
+        [apType]
+      )
+    } catch (error) {
+      app.debug(error)
+    }
+  }
+
+  // Autopilot API - parse NMEA2000 stream input
+  const onStreamEvent = (evt) => {
+    // in-scope PGNs
+    const pgns = [
+      65345, 65360, 65379, 
+      65288,
+      127237
+    ]
+   
+    if (!pgns.includes(evt.pgn) || String(evt.src) !== autopilot.id) {
+      return
+    }
+   
+    // 127237 `Heading / Track control (Rudder, etc.)`
+    if (evt.pgn === 127237) { 
+      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+    }
+
+    // 65288 = notifications.autopilot.<alarmName>
+    if (evt.pgn === 65288) {
+      if (evt.fields['Manufacturer Code'] !== 'Raymarine'
+        || typeof evt.fields['Alarm Group'] === 'Autopilot'
+        || typeof evt.fields['Alarm Status'] === 'undefined') {
+        return
+      }
+ 
+      const method = [ 'visual' ]
+
+      let state = evt.fields['Alarm Status']
+      if ( state === 'Alarm condition met and not silenced' ) {
+        method.push('sound')
+      }
+
+      if ( state === 'Alarm condition not met' ) {
+        state = 'normal'
+      } else {
+        state = 'alarm'
+      }
+
+      let alarmId = evt.fields['Alarm ID']
+
+      if ( typeof alarmId !== 'string' ) {
+        alarmId = `Unknown Seatalk Alarm ${alarmId}`
+      } else if ( 
+        state === 'alarm' &&
+          ['WP Arrival','Pilot Way Point Advance','Pilot Route Complete'].includes(alarmId)
+        ) {
+        state = 'alert'
+      }
+
+      // normalise alarm name
+      let alarmName = normaliseAlarmId(alarmId)
+      if (!alarmName) {
+        app.debug(`*** Normalise Alarm Failed: ${alarmId}`)
+        return
+      }
+
+      const msg = {
+        message: alarmName,
+        method: method,
+        state: state
+      }
+
+      app.autopilotAlarm(apType, alarmName, msg)
+    }
+
+    // 65345 = 'steering.autopilot.target (windAngleApparent)'
+    if (evt.pgn === 65345) {
+      let angle = evt.fields['Wind Datum'] ? Number(evt.fields['Wind Datum']) : null
+      angle = ( typeof angle === 'number' && angle > Math.PI ) ? angle-(Math.PI*2) : angle
+      app.autopilotUpdate(apType, 'target', angle)
+    }
+
+    // 65360 = 'steering.autopilot.target (true/magnetic)'
+    if (evt.pgn === 65360) {
+      const targetTrue = evt.fields['Target Heading True'] ? Number(evt.fields['Target Heading True']) : null
+      const targetMagnetic = evt.fields['Target Heading Magnetic'] ? Number(evt.fields['Target Heading Magnetic']) : null
+      const target = typeof targetTrue === 'number' ? targetTrue :
+        typeof targetMagnetic === 'number' ? targetMagnetic: null
+      app.autopilotUpdate(apType, 'target', target)
+    }
+    
+    // 65379 = 'steering.autopilot.state', 'steering.autopilot.engaged'
+    if (evt.pgn === 65379) {
+      const mode = evt.fields['Pilot Mode'] ? Number(evt.fields['Pilot Mode']) : null
+      const subMode = evt.fields['Sub Mode'] ? Number(evt.fields['Sub Mode']) : null
+      if ( mode === 0 && subMode === 0 ) {
+        app.autopilotUpdate(apType, 'state', 'standby')
+        app.autopilotUpdate(apType, 'engaged', false)
+      }
+      else if ( mode == 0 && subMode == 1 ) {
+        app.autopilotUpdate(apType, 'state', 'wind')
+        app.autopilotUpdate(apType, 'engaged', true)
+      }
+      else if ( (mode == 128 || mode == 129) && subMode == 1 ) {
+        app.autopilotUpdate(apType, 'state', 'route')
+        app.autopilotUpdate(apType, 'engaged', true)
+      }
+      else if ( mode == 64 && subMode == 0 ) {
+        app.autopilotUpdate(apType, 'state', 'auto')
+        app.autopilotUpdate(apType, 'engaged', true)
+      }
+      else {
+        app.autopilotUpdate(apType, 'state', 'standby')
+        app.autopilotUpdate(apType, 'engaged', false)
+      }
+    }
+
+  }
+
+  // normalise SK alarm path 
+  const normaliseAlarmId = (id) => {
+    switch (id) {
+      case 'WP Arrival':
+        return 'waypointArrival'
+      case 'Pilot Way Point Advance':
+        return 'waypointAdvance'
+      case 'Pilot Route Complete':
+        return 'routeComplete'
+      default:
+        return ''
+    }
   }
 
   return plugin;
