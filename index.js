@@ -74,8 +74,42 @@ module.exports = function(app) {
     app.registerPutHandler('vessels.self',
                            advance,
                            autopilot.putAdvanceWaypoint)
-  }
 
+    app.handleMessage(plugin.id, {
+      updates: [
+          {
+            meta: [
+              {
+                path: state_path,
+                value: {
+                  displayName: 'Autopilot State',
+                  type: 'multiple',
+                  possibleValues: [
+                    {
+                      title: 'Standby',
+                      value: 'standby'
+                    },
+                    {
+                      title: 'Auto',
+                      value: 'auto'
+                    },
+                    {
+                      title: 'Wind',
+                      value: 'wind',
+                    },
+                    {
+                      title: 'Route',
+                      value: 'route'
+                    }
+                  ]
+                }
+              },
+            ]
+          }
+      ]
+    })
+  }
+  
   plugin.stop = function() {
     onStop.forEach(f => f());
     onStop = []
