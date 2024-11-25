@@ -28,11 +28,28 @@ const types  = {
   raymarineN2K: require('./raymarinen2k')
 }
 
+const apData = {
+  options: {
+    states: [
+      {name: 'auto', engaged: true},
+      {name: 'wind', engaged: true},
+      {name: 'route', engaged: true},
+      {name: 'standby', engaged: false}
+    ],
+    modes: []
+  },
+  mode: null,
+  state: null,
+  engaged: false,
+  target: null
+}
+
 module.exports = function(app) {
   var plugin = {}
   var onStop = []
   var autopilot
   var pilots = {}
+
 
   let apType = '' // autopilot type
 
@@ -134,24 +151,10 @@ module.exports = function(app) {
       app.registerAutopilotProvider(
         {
           getData: async (deviceId) => {
-            const apState = app.getSelfPath(state_path)
-            return {
-              options: {
-                states: [
-                  {name: 'auto', engaged: true},
-                  {name: 'wind', engaged: true},
-                  {name: 'route', engaged: true},
-                  {name: 'standby', engaged: false}
-                ],
-                modes: []
-              },
-              mode: null,
-              state: apState ?? null,
-              engaged: ['auto','wind','route'].includes(apState) ? true : false
-            }
+            return apData
           },
           getState: async (deviceId) => {
-            return app.getSelfPath(state_path) ?? null
+            return apData.state
           },
           setState: async (
             state,
@@ -161,9 +164,6 @@ module.exports = function(app) {
             if (r.state === 'FAILURE') {
               throw new Error(r.message)
             }
-            else {
-              return state === 'standby' ? false : true
-            }
           },
           getMode: async (deviceId) => {
             throw new Error('Not implemented!')
@@ -172,18 +172,17 @@ module.exports = function(app) {
             throw new Error('Not implemented!')
           },
           getTarget: async (deviceId) => {
-            throw new Error('Not implemented!')
+            return apData.target
           },
           setTarget: async (value, deviceId) => {
-            const apState = app.getSelfPath(state_path)
-            const deg = value * (180 / Math.PI)
+            const apState = apData.state
             if ( apState === 'auto' ) {
-              const r = autopilot.putTargetHeading(undefined, undefined, deg, undefined)
+              const r = autopilot.putTargetHeading(undefined, undefined, value, undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
               }
             } else if ( apState === 'wind' ) {
-              const r = autopilot.putTargetWind(undefined, undefined, deg, undefined)
+              const r = autopilot.putTargetWind(undefined, undefined, value, undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
               }
@@ -194,8 +193,7 @@ module.exports = function(app) {
             value,
             deviceId
           ) => {
-            const deg = value * (180 / Math.PI)
-            const r = autopilot.putAdjustHeading(undefined, undefined, deg, undefined)
+            const r = autopilot.putAdjustHeading(undefined, undefined, value, undefined)
             if (r.state === 'FAILURE') {
               throw new Error(r.message)
             }
@@ -228,6 +226,12 @@ module.exports = function(app) {
             deviceId
           ) => {
             throw new Error('Not implemented!')
+          },
+          dodge: async (
+            direction,
+            deviceId
+          ) => {
+            throw new Error('Not implemented!')
           }
         },
         [apType]
@@ -243,7 +247,8 @@ module.exports = function(app) {
     const pgns = [
       65345, 65360, 65379, 
       65288,
-      127237
+      127237,
+      126720
     ]
    
     if (!pgns.includes(evt.pgn) || String(evt.src) !== autopilot.id) {
@@ -300,14 +305,20 @@ module.exports = function(app) {
         state: state
       }
 
-      app.autopilotAlarm(apType, alarmName, msg)
+      app.autopilotUpdate(apType, {
+        alarm: {
+          path: alarmName, 
+          value: msg
+        }
+      })
     }
 
     // 65345 = 'steering.autopilot.target (windAngleApparent)'
     if (evt.pgn === 65345) {
       let angle = evt.fields['Wind Datum'] ? Number(evt.fields['Wind Datum']) : null
       angle = ( typeof angle === 'number' && angle > Math.PI ) ? angle-(Math.PI*2) : angle
-      app.autopilotUpdate(apType, 'target', angle)
+      apData.target = radiansToDegrees(angle)
+      app.autopilotUpdate(apType, {target: angle})
     }
 
     // 65360 = 'steering.autopilot.target (true/magnetic)'
@@ -316,32 +327,68 @@ module.exports = function(app) {
       const targetMagnetic = evt.fields['Target Heading Magnetic'] ? Number(evt.fields['Target Heading Magnetic']) : null
       const target = typeof targetTrue === 'number' ? targetTrue :
         typeof targetMagnetic === 'number' ? targetMagnetic: null
-      app.autopilotUpdate(apType, 'target', target)
+      apData.target = radiansToDegrees(target)
+      app.autopilotUpdate(apType, {target: target})
+    }
+
+    // 126720 ``
+    if (evt.pgn === 126720) { 
+      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
     }
     
     // 65379 = 'steering.autopilot.state', 'steering.autopilot.engaged'
     if (evt.pgn === 65379) {
-      const mode = evt.fields['Pilot Mode'] ? Number(evt.fields['Pilot Mode']) : null
-      const subMode = evt.fields['Sub Mode'] ? Number(evt.fields['Sub Mode']) : null
+      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
+      const mode = typeof evt.fields['Pilot Mode Data']  === 'number' ? evt.fields['Pilot Mode Data'] : null
+      const subMode = typeof evt.fields['Sub Mode']  === 'number' ? evt.fields['Sub Mode'] : null
+      //app.debug(`mode: ${mode}, subMode: ${subMode}`)
       if ( mode === 0 && subMode === 0 ) {
-        app.autopilotUpdate(apType, 'state', 'standby')
-        app.autopilotUpdate(apType, 'engaged', false)
+        apData.state = 'standby'
+        apData.engaged = false
+        app.autopilotUpdate(apType, {
+          state: apData.state,
+          engaged: false
+        })
       }
       else if ( mode == 0 && subMode == 1 ) {
-        app.autopilotUpdate(apType, 'state', 'wind')
-        app.autopilotUpdate(apType, 'engaged', true)
+        apData.state = 'wind'
+        apData.engaged = true
+        app.autopilotUpdate(apType, {
+          state: apData.state,
+          engaged: true
+        })
       }
       else if ( (mode == 128 || mode == 129) && subMode == 1 ) {
-        app.autopilotUpdate(apType, 'state', 'route')
-        app.autopilotUpdate(apType, 'engaged', true)
+        apData.state = 'route'
+        apData.engaged = true
+        app.autopilotUpdate(apType, {
+          state: apData.state,
+          engaged: true
+        })
+      }
+      else if ( mode == 2 && subMode == 0 ) {
+        apData.state = 'route'
+        apData.engaged = true
+        app.autopilotUpdate(apType, {
+          state: apData.state,
+          engaged: true
+        })
       }
       else if ( mode == 64 && subMode == 0 ) {
-        app.autopilotUpdate(apType, 'state', 'auto')
-        app.autopilotUpdate(apType, 'engaged', true)
+        apData.state = 'auto'
+        apData.engaged = true
+        app.autopilotUpdate(apType, {
+          state: apData.state,
+          engaged: true
+        })
       }
       else {
-        app.autopilotUpdate(apType, 'state', 'standby')
-        app.autopilotUpdate(apType, 'engaged', false)
+        apData.state = 'standby'
+        apData.engaged = false
+        app.autopilotUpdate(apType, {
+          state: apData.state,
+          engaged: false
+        })
       }
     }
 
@@ -357,9 +404,14 @@ module.exports = function(app) {
       case 'Pilot Route Complete':
         return 'routeComplete'
       default:
-        return ''
+        return 'unknown'
     }
   }
+
+  const radiansToDegrees = (value) => value * 180 / Math.PI
+  
+  const degreesToRadians = (value) => value * (Math.PI/180.0)
+
 
   return plugin;
 }
