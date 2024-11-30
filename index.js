@@ -95,9 +95,6 @@ module.exports = function(app) {
                            advance,
                            autopilot.putAdvanceWaypoint)
 
-    registerProvider()
-
-
     app.handleMessage(plugin.id, {
       updates: [
           {
@@ -131,6 +128,8 @@ module.exports = function(app) {
           }
       ]
     })
+
+    registerProvider()
   }
   
   plugin.stop = function() {
