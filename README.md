@@ -32,7 +32,7 @@ Http:
 ```
 PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/target/headingMagnetic
 {
-  "value": 1.52,
+  "value": 88,
 }
 ```
 
@@ -44,7 +44,7 @@ WebSockets:
   "requestId": "184743-434373-348483",
   "put": {
     "path": "steering.autopilot.target.headingMagnetic",
-    "value": 1.52
+    "value": 88
   }
 }
 ```
@@ -93,12 +93,12 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/actions
 
 ## Target Heading
 
-The `value` is the heading in radians.
+The `value` is the heading in degrees.
 
 ```
 PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/target/headingMagnetic
 {
-  "value": 1.52,
+  "value": 80,
 }
 ```
 
