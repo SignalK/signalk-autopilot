@@ -36,7 +36,7 @@ const apData = {
       {name: 'route', engaged: true},
       {name: 'standby', engaged: false}
     ],
-    modes: []
+    modes: ['auto', 'wind', 'route']
   },
   mode: null,
   state: null,
@@ -200,10 +200,18 @@ module.exports = function(app) {
             }
           },
           getMode: async (deviceId) => {
-            throw new Error('Not implemented!')
+            return apData.mode
           },
           setMode: async (mode, deviceId) => {
-            throw new Error('Not implemented!')
+            const r = autopilot.putState(
+              undefined, 
+              undefined, 
+              mode, 
+              undefined
+            )
+            if (r.state === 'FAILURE') {
+              throw new Error(r.message)
+            }
           },
           getTarget: async (deviceId) => {
             return apData.target
@@ -211,12 +219,12 @@ module.exports = function(app) {
           setTarget: async (value, deviceId) => {
             const apState = apData.state
             if ( apState === 'auto' ) {
-              const r = autopilot.putTargetHeading(undefined, undefined, value, undefined)
+              const r = autopilot.putTargetHeading(undefined, undefined, radiansToDegrees(value), undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
               }
             } else if ( apState === 'wind' ) {
-              const r = autopilot.putTargetWind(undefined, undefined, value, undefined)
+              const r = autopilot.putTargetWind(undefined, undefined, radiansToDegrees(value), undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
               }
@@ -227,7 +235,7 @@ module.exports = function(app) {
             value,
             deviceId
           ) => {
-            const r = autopilot.putAdjustHeading(undefined, undefined, value, undefined)
+            const r = autopilot.putAdjustHeading(undefined, undefined, Math.floor(radiansToDegrees(value)), undefined)
             if (r.state === 'FAILURE') {
               throw new Error(r.message)
             }
@@ -385,33 +393,41 @@ module.exports = function(app) {
         })
       }
       else if ( mode == 0 && subMode == 1 ) {
+        apData.mode = 'wind'
         apData.state = 'wind'
         apData.engaged = true
         app.autopilotUpdate(apType, {
+          mode: apData.mode,
           state: apData.state,
           engaged: true
         })
       }
       else if ( (mode == 128 || mode == 129) && subMode == 1 ) {
+        apData.mode = 'route'
         apData.state = 'route'
         apData.engaged = true
         app.autopilotUpdate(apType, {
+          mode: apData.mode,
           state: apData.state,
           engaged: true
         })
       }
       else if ( mode == 2 && subMode == 0 ) {
+        apData.mode = 'route'
         apData.state = 'route'
         apData.engaged = true
         app.autopilotUpdate(apType, {
+          mode: apData.mode,
           state: apData.state,
           engaged: true
         })
       }
       else if ( mode == 64 && subMode == 0 ) {
+        apData.mode = 'auto'
         apData.state = 'auto'
         apData.engaged = true
         app.autopilotUpdate(apType, {
+          mode: apData.mode,
           state: apData.state,
           engaged: true
         })
