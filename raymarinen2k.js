@@ -18,6 +18,7 @@ const util = require('util')
 const _ = require('lodash')
 
 const state_path = "steering.autopilot.state.value"
+const hull_type_path = "steering.autopilot.hullType"
 
 const SUCCESS_RES = { state: 'SUCCESS' }
 const FAILURE_RES = { state: 'FAILURE' }
@@ -43,6 +44,39 @@ const wind_direction_command = "%s,3,126208,%s,%s,14,01,41,ff,00,f8,03,01,3b,07,
 const raymarine_ttw_Mode = "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
 const raymarine_ttw = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
 const confirm_tack = "%s,2,126720,%s,%s,7,3b,9f,f0,81,90,00,03"
+const hull_type_command = "%s,3,126208,%s,%s,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,%s,52,ff"
+
+
+const hullTypes = {
+  "sailSlowTurn": {
+    title: "Sail (slow turn)",
+    abbrev: "Sail Slow",
+    code: "01"
+  },
+  "sail": {
+    title: "Sail",
+    code: "00"
+  },
+  "sailCatamaran": {
+    title: "Sail Catamaran",
+    abbrev: "Sail Cat",
+    code: "02"
+  },
+  "power": {
+    title: "Power",
+    code: "08"
+  },
+  "powerSlowTurn": {
+    title: "Power (slow turn)",
+    abbrev: "Power Slow",
+    code: "03"
+  },
+  "powerFastTurn": {
+    title: "Power (fast turn)",
+    abbrev: "Power Fast",
+    code: "05"
+  }
+}
 
 const keep_alive = "%s,7,65384,%s,255,8,3b,9f,00,00,00,00,00,00"
 const keep_alive2 = "%s,7,126720,%s,255,7,3b,9f,f0,81,90,00,03"
@@ -59,6 +93,46 @@ module.exports = function(app) {
 
   pilot.start = (props) => {
     deviceid = props.deviceid
+
+    app.registerPutHandler('vessels.self',
+                           hull_type_path,
+                           pilot.putHullType)
+
+    const possibleValues = []
+
+    Object.keys(hullTypes).forEach(key => {
+      const type = hullTypes[key]
+      possibleValues.push({
+        title: type.title,
+        abbrev: type.abbrev,
+        value: key
+      })
+    })
+
+    app.handleMessage("autopilot", {
+      updates: [
+        {
+          values: [
+            {
+              path: hull_type_path,
+              value: "unknown"
+            }
+          ]
+        },
+        {
+          meta: [
+            {
+              path: hull_type_path,
+              value: {
+                  displayName: 'Vessel Hull Type',
+                type: 'multiple',
+                possibleValues
+              }
+            },
+          ]
+        }
+      ]
+    })
 
     if ( props.controlHead ) {
       timers.push(setInterval(() => {
@@ -85,6 +159,36 @@ module.exports = function(app) {
   function sendN2k(msgs) {
     app.debug("n2k_msg: " + msgs)
     msgs.map(function(msg) { app.emit('nmea2000out', msg)})
+  }
+
+  pilot.putHullType = (context, path, value, cb) => {
+    const type = hullTypes[value]
+    const state = app.getSelfPath(state_path)
+
+    if ( type === undefined ) {
+      return { message: 'Invalid hull type', ...FAILURE_RES }
+    } else if ( state !== 'standby' ) {
+      return { message: 'Autopilot not in standby', ...FAILURE_RES }
+    } else {
+       var msg = util.format(hull_type_command, (new Date()).toISOString(), default_src,
+                            autopilot_dst, type.code)
+
+      sendN2k([msg])
+      app.handleMessage("autopilot", {
+        updates: [
+          {
+            values: [
+              {
+                path: hull_type_path,
+                value
+              }
+            ]
+          }
+        ]
+      })
+      
+      return SUCCESS_RES
+    }
   }
 
   pilot.putTargetHeading = (context, path, value, cb) => {
