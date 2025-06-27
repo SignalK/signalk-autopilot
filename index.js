@@ -178,7 +178,7 @@ module.exports = function(app) {
   // Autopilot API - register with Autopilot API
   const registerProvider = ()=> {
     app.debug('**** intialise n2k listener *****')
-    app.on('N2KAnalyzerOut', onStreamEvent)
+    subscribeToPaths()
 
     app.debug('**** registerProvider *****')
     try {
@@ -283,185 +283,86 @@ module.exports = function(app) {
     }
   }
 
-  // Autopilot API - parse NMEA2000 stream input
-  const onStreamEvent = (evt) => {
-    // in-scope PGNs
-    const pgns = [
-      65345, 65360, 65379, 
-      65288,
-      127237,
-      126720
-    ]
-   
-    if (!pgns.includes(evt.pgn) || String(evt.src) !== autopilot.id) {
-      return
-    }
-   
-    // 127237 `Heading / Track control (Rudder, etc.)`
-    if (evt.pgn === 127237) { 
-      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
-    }
-
-    // 65288 = notifications.autopilot.<alarmName>
-    if (evt.pgn === 65288) {
-      if (evt.fields['Manufacturer Code'] !== 'Raymarine'
-        || typeof evt.fields['Alarm Group'] === 'Autopilot'
-        || typeof evt.fields['Alarm Status'] === 'undefined') {
-        return
-      }
- 
-      const method = [ 'visual' ]
-
-      let state = evt.fields['Alarm Status']
-      if ( state === 'Alarm condition met and not silenced' ) {
-        method.push('sound')
-      }
-
-      if ( state === 'Alarm condition not met' ) {
-        state = 'normal'
-      } else {
-        state = 'alarm'
-      }
-
-      let alarmId = evt.fields['Alarm ID']
-
-      if ( typeof alarmId !== 'string' ) {
-        alarmId = `Unknown Seatalk Alarm ${alarmId}`
-      } else if ( 
-        state === 'alarm' &&
-          ['WP Arrival','Pilot Way Point Advance','Pilot Route Complete'].includes(alarmId)
-        ) {
-        state = 'alert'
-      }
-
-      // normalise alarm name
-      let alarmName = normaliseAlarmId(alarmId)
-      if (!alarmName) {
-        app.debug(`*** Normalise Alarm Failed: ${alarmId}`)
-        return
-      }
-
-      const msg = {
-        message: alarmName,
-        method: method,
-        state: state
-      }
-
-      app.autopilotUpdate(apType, {
-        alarm: {
-          path: alarmName, 
-          value: msg
+  // Subscribe to autopilot paths
+  const subscribeToPaths = () => {
+    app.subscriptionmanager?.subscribe(
+        {
+          context: 'vessels.self',
+          subscribe: [
+            {
+              path: 'steering.autopilot.*',
+              period: 500
+            }
+          ]
+        },
+        onStop,
+        (err) => {
+          console.log(`Autopilot subscriptions failed! ${err}`)
+        },
+        (msg) => {
+          processAPDeltas(msg)
         }
-      })
-    }
-
-    // 65345 = 'steering.autopilot.target (windAngleApparent)'
-    if (evt.pgn === 65345) {
-      let angle = evt.fields['Wind Datum'] ? Number(evt.fields['Wind Datum']) : null
-      angle = ( typeof angle === 'number' && angle > Math.PI ) ? angle-(Math.PI*2) : angle
-      apData.target = radiansToDegrees(angle)
-      app.autopilotUpdate(apType, {target: angle})
-    }
-
-    // 65360 = 'steering.autopilot.target (true/magnetic)'
-    if (evt.pgn === 65360) {
-      const targetTrue = evt.fields['Target Heading True'] ? Number(evt.fields['Target Heading True']) : null
-      const targetMagnetic = evt.fields['Target Heading Magnetic'] ? Number(evt.fields['Target Heading Magnetic']) : null
-      const target = typeof targetTrue === 'number' ? targetTrue :
-        typeof targetMagnetic === 'number' ? targetMagnetic: null
-      apData.target = radiansToDegrees(target)
-      app.autopilotUpdate(apType, {target: target})
-    }
-
-    // 126720 ``
-    if (evt.pgn === 126720) { 
-      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
-    }
-    
-    // 65379 = 'steering.autopilot.state', 'steering.autopilot.engaged'
-    if (evt.pgn === 65379) {
-      //app.debug('n2k pgn=', evt.pgn, evt.fields, evt.description)
-      const mode = typeof evt.fields['Pilot Mode Data']  === 'number' ? evt.fields['Pilot Mode Data'] : null
-      const subMode = typeof evt.fields['Sub Mode']  === 'number' ? evt.fields['Sub Mode'] : null
-      //app.debug(`mode: ${mode}, subMode: ${subMode}`)
-      if ( mode === 0 && subMode === 0 ) {
-        apData.state = 'standby'
-        apData.engaged = false
-        app.autopilotUpdate(apType, {
-          state: apData.state,
-          engaged: false
-        })
-      }
-      else if ( mode == 0 && subMode == 1 ) {
-        apData.mode = 'wind'
-        apData.state = 'wind'
-        apData.engaged = true
-        app.autopilotUpdate(apType, {
-          mode: apData.mode,
-          state: apData.state,
-          engaged: true
-        })
-      }
-      else if ( (mode == 128 || mode == 129) && subMode == 1 ) {
-        apData.mode = 'route'
-        apData.state = 'route'
-        apData.engaged = true
-        app.autopilotUpdate(apType, {
-          mode: apData.mode,
-          state: apData.state,
-          engaged: true
-        })
-      }
-      else if ( mode == 2 && subMode == 0 ) {
-        apData.mode = 'route'
-        apData.state = 'route'
-        apData.engaged = true
-        app.autopilotUpdate(apType, {
-          mode: apData.mode,
-          state: apData.state,
-          engaged: true
-        })
-      }
-      else if ( mode == 64 && subMode == 0 ) {
-        apData.mode = 'auto'
-        apData.state = 'auto'
-        apData.engaged = true
-        app.autopilotUpdate(apType, {
-          mode: apData.mode,
-          state: apData.state,
-          engaged: true
-        })
-      }
-      else {
-        apData.state = 'standby'
-        apData.engaged = false
-        app.autopilotUpdate(apType, {
-          state: apData.state,
-          engaged: false
-        })
-      }
-    }
-
+      )
   }
 
-  // normalise SK alarm path 
-  const normaliseAlarmId = (id) => {
-    switch (id) {
-      case 'WP Arrival':
-        return 'waypointArrival'
-      case 'Pilot Way Point Advance':
-        return 'waypointAdvance'
-      case 'Pilot Route Complete':
-        return 'routeComplete'
-      default:
-        return 'unknown'
+  /** Process deltas for steering.autopilot data
+   * Note: Only deltas with a source.src that matches autopilot.id are processed!
+   */
+  const processAPDeltas = async (delta) => {
+    if (!Array.isArray(delta.updates)) {
+      return
     }
+    delta.updates.forEach((update) => {
+      if (Array.isArray(update.values)) {
+        update.values.forEach((pathValue) => {
+          if (
+            update.source &&
+            update.source.type &&
+            update.source.type === 'NMEA2000'
+          ) {
+            // match the src value to the autopilot.id
+            if (String(update.source.src) !== autopilot.id) {
+              return
+            }
+            if (pathValue.path === 'steering.autopilot.state') {             
+              apData.state = pathValue.value
+              if (['wind','route','auto'].includes(pathValue.value)) {
+                apData.mode = pathValue.value
+                apData.engaged = true
+              }
+              if (pathValue.value === 'standby') {
+                apData.engaged = false
+              }
+              app.autopilotUpdate(apType, {
+                mode: apData.mode,
+                state: apData.state,
+                engaged: apData.engaged
+              })
+            }
+
+            if (apData.mode === 'wind') {
+              if (pathValue.path === 'steering.autopilot.target.windAngleApparent' ) {
+                apData.target = pathValue.value
+                app.autopilotUpdate(apType, {target: pathValue.value})
+              }
+            } else {
+              if (
+                pathValue.path === 'steering.autopilot.target.headingTrue' ||
+                pathValue.path === 'steering.autopilot.target.headingMagnetic'
+              ) {
+                apData.target = pathValue.value
+                app.autopilotUpdate(apType, {target: pathValue.value})
+              }
+            }
+          }
+        })
+      }
+    })
   }
 
   const radiansToDegrees = (value) => value * 180 / Math.PI
   
   const degreesToRadians = (value) => value * (Math.PI/180.0)
-
 
   return plugin;
 }
