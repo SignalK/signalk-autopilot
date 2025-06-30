@@ -31,9 +31,10 @@ const types  = {
 const apData = {
   options: {
     states: [
-      {name: 'auto', engaged: true},
+      /*{name: 'auto', engaged: true},
       {name: 'wind', engaged: true},
-      {name: 'route', engaged: true},
+      {name: 'route', engaged: true},*/
+      {name: 'active', engaged: true},
       {name: 'standby', engaged: false}
     ],
     modes: ['auto', 'wind', 'route']
@@ -43,6 +44,8 @@ const apData = {
   engaged: false,
   target: null
 }
+
+const defaultAPMode = 'auto'
 
 module.exports = function(app) {
   var plugin = {}
@@ -177,10 +180,10 @@ module.exports = function(app) {
 
   // Autopilot API - register with Autopilot API
   const registerProvider = ()=> {
-    app.debug('**** intialise n2k listener *****')
+    app.debug('**** intialise Sk path subscriptions *****')
     subscribeToPaths()
 
-    app.debug('**** registerProvider *****')
+    app.debug('**** register AP Provider *****')
     try {
       app.registerAutopilotProvider(
         {
@@ -194,36 +197,46 @@ module.exports = function(app) {
             state,
             deviceId
           ) => {
-            const r = autopilot.putState(undefined, undefined, state, undefined)
-            if (r.state === 'FAILURE') {
-              throw new Error(r.message)
+            if (['standby','active'].includes(state)) {
+              if (state === 'active') {
+                state = apData.mode ?? defaultAPMode
+              }
+              const r = autopilot.putState(undefined, undefined, state, undefined)
+              if (r.state === 'FAILURE') {
+                throw new Error(r.message)
+              }
+            } else {
+              throw new Error(`${state} is not a valid value!`)
             }
           },
           getMode: async (deviceId) => {
             return apData.mode
           },
           setMode: async (mode, deviceId) => {
-            const r = autopilot.putState(
-              undefined, 
-              undefined, 
-              mode, 
-              undefined
-            )
-            if (r.state === 'FAILURE') {
-              throw new Error(r.message)
+            if (['auto', 'wind', 'route'].includes(mode)) {
+              const r = autopilot.putState(
+                undefined, 
+                undefined, 
+                mode, 
+                undefined
+              )
+              if (r.state === 'FAILURE') {
+                throw new Error(r.message)
+              }
+            } else {
+              throw new Error(`${mode} is not a valid value!`)
             }
           },
           getTarget: async (deviceId) => {
             return apData.target
           },
           setTarget: async (value, deviceId) => {
-            const apState = apData.state
-            if ( apState === 'auto' ) {
+            if ( apData.mode === 'auto' ) {
               const r = autopilot.putTargetHeading(undefined, undefined, radiansToDegrees(value), undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
               }
-            } else if ( apState === 'wind' ) {
+            } else if ( apData.mode === 'wind' ) {
               const r = autopilot.putTargetWind(undefined, undefined, radiansToDegrees(value), undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
@@ -242,7 +255,7 @@ module.exports = function(app) {
             return
           },
           engage: async (deviceId) => {
-            const r = autopilot.putState(undefined, undefined, 'auto', undefined)
+            const r = autopilot.putState(undefined, undefined, defaultAPMode, undefined)
             if (r.state === 'FAILURE') {
               throw new Error(r.message) 
             }
@@ -306,7 +319,7 @@ module.exports = function(app) {
   }
 
   /** Process deltas for steering.autopilot data
-   * Note: Only deltas with a source.src that matches autopilot.id are processed!
+   * Note: Only deltas where source.type = NMEA2000 and source.src = autopilot.id are processed!
    */
   const processAPDeltas = async (delta) => {
     if (!Array.isArray(delta.updates)) {
@@ -324,15 +337,19 @@ module.exports = function(app) {
             if (String(update.source.src) !== autopilot.id) {
               return
             }
+            // map n2k device state to API.state & API.mode
             if (pathValue.path === 'steering.autopilot.state') {             
-              apData.state = pathValue.value
+
               if (['wind','route','auto'].includes(pathValue.value)) {
                 apData.mode = pathValue.value
+                apData.state = 'active'
                 apData.engaged = true
               }
               if (pathValue.value === 'standby') {
                 apData.engaged = false
+                apData.state = 'standby'
               }
+
               app.autopilotUpdate(apType, {
                 mode: apData.mode,
                 state: apData.state,
@@ -340,19 +357,22 @@ module.exports = function(app) {
               })
             }
 
-            if (apData.mode === 'wind') {
-              if (pathValue.path === 'steering.autopilot.target.windAngleApparent' ) {
-                apData.target = pathValue.value
-                app.autopilotUpdate(apType, {target: pathValue.value})
-              }
-            } else {
-              if (
-                pathValue.path === 'steering.autopilot.target.headingTrue' ||
-                pathValue.path === 'steering.autopilot.target.headingMagnetic'
-              ) {
-                apData.target = pathValue.value
-                app.autopilotUpdate(apType, {target: pathValue.value})
-              }
+            // map n2k device target value to API.target
+            if (
+              pathValue.path === 'steering.autopilot.target.windAngleApparent' &&
+              apData.mode === 'wind'
+            ) {
+              apData.target = pathValue.value
+              app.autopilotUpdate(apType, {target: pathValue.value})
+            }
+            
+            if (
+              (pathValue.path === 'steering.autopilot.target.headingTrue' ||
+              pathValue.path === 'steering.autopilot.target.headingMagnetic') &&
+              apData.mode !== 'wind'
+            ) {
+              apData.target = pathValue.value
+              app.autopilotUpdate(apType, {target: pathValue.value})
             }
           }
         })
