@@ -165,8 +165,8 @@ module.exports = function(app) {
   pilot.putTack = (context, path, value, cb)  => {
     var state = app.getSelfPath(state_path)
 
-    if ( state !== 'wind' ) {
-      return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
+    if ( state !== 'wind' && state !== 'auto' ) {
+      return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
     } else {
       sendDatagram(tackTo(app, outputEvent, {value: value}))
       return SUCCESS_RES

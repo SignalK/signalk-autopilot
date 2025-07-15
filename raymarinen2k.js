@@ -262,10 +262,10 @@ module.exports = function(app) {
 
   pilot.putTack = (context, path, value, cb)  => {
     var state = app.getSelfPath(state_path)
-    
-    if ( state !== 'wind' ) {
-      return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
-    } else {
+
+    if ( state !== 'wind' && state !== 'auto' ) {
+      return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+    } else {    
       sendN2k(tackTo(app, deviceid, {value: value}))
       return SUCCESS_RES
     }
