@@ -31,13 +31,12 @@ const types  = {
 const apData = {
   options: {
     states: [
-      /*{name: 'auto', engaged: true},
+      {name: 'standby', engaged: false},
+      {name: 'auto', engaged: true},
       {name: 'wind', engaged: true},
-      {name: 'route', engaged: true},*/
-      {name: 'active', engaged: true},
-      {name: 'standby', engaged: false}
+      {name: 'route', engaged: true},
     ],
-    modes: ['auto', 'wind', 'route']
+    modes: []
   },
   mode: null,
   state: null,
@@ -45,7 +44,10 @@ const apData = {
   target: null
 }
 
-const defaultAPMode = 'auto'
+const defaultEngagedState = 'auto'
+const isValidState = (value) => {
+  return apData.options.states.findIndex(i => i.name === value) !== -1
+}
 
 module.exports = function(app) {
   var plugin = {}
@@ -197,10 +199,7 @@ module.exports = function(app) {
             state,
             deviceId
           ) => {
-            if (['standby','active'].includes(state)) {
-              if (state === 'active') {
-                state = apData.mode ?? defaultAPMode
-              }
+            if (isValidState(state)) {
               const r = autopilot.putState(undefined, undefined, state, undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
@@ -210,22 +209,10 @@ module.exports = function(app) {
             }
           },
           getMode: async (deviceId) => {
-            return apData.mode
+            throw new Error('Not implemented!')
           },
           setMode: async (mode, deviceId) => {
-            if (['auto', 'wind', 'route'].includes(mode)) {
-              const r = autopilot.putState(
-                undefined, 
-                undefined, 
-                mode, 
-                undefined
-              )
-              if (r.state === 'FAILURE') {
-                throw new Error(r.message)
-              }
-            } else {
-              throw new Error(`${mode} is not a valid value!`)
-            }
+            throw new Error('Not implemented!')
           },
           getTarget: async (deviceId) => {
             return apData.target
@@ -241,8 +228,10 @@ module.exports = function(app) {
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
               }
+            } else {
+              throw new Error(`Unable to set target value! STATE = ${apData.state}`)
             }
-            return
+            
           },
           adjustTarget: async (
             value,
@@ -255,7 +244,7 @@ module.exports = function(app) {
             return
           },
           engage: async (deviceId) => {
-            const r = autopilot.putState(undefined, undefined, defaultAPMode, undefined)
+            const r = autopilot.putState(undefined, undefined, defaultEngagedState, undefined)
             if (r.state === 'FAILURE') {
               throw new Error(r.message) 
             }
@@ -272,7 +261,7 @@ module.exports = function(app) {
             direction,
             deviceId
           ) => {
-            const r = autopilot.putTack(undefined, undefined, 'direction', undefined)
+            const r = autopilot.putTack(undefined, undefined, direction, undefined)
             if (r.state === 'FAILURE') { throw new Error(r.message) }
             return
           },
@@ -339,19 +328,9 @@ module.exports = function(app) {
             }
             // map n2k device state to API.state & API.mode
             if (pathValue.path === 'steering.autopilot.state') {             
-
-              if (['wind','route','auto'].includes(pathValue.value)) {
-                apData.mode = pathValue.value
-                apData.state = 'active'
-                apData.engaged = true
-              }
-              if (pathValue.value === 'standby') {
-                apData.engaged = false
-                apData.state = 'standby'
-              }
-
+              apData.state = isValidState(pathValue.value) ? pathValue.value : null
+              apData.engaged = apData.options.states.find(i => i.name === pathValue.value).engaged
               app.autopilotUpdate(apType, {
-                mode: apData.mode,
                 state: apData.state,
                 engaged: apData.engaged
               })
