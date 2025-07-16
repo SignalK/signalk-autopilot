@@ -19,9 +19,11 @@ const _ = require('lodash')
 
 const state_path = "steering.autopilot.state.value"
 const hull_type_path = "steering.autopilot.hullType"
+const target_heading_path = "steering.autopilot.target.headingMagnetic.value"
 
-const SUCCESS_RES = { state: 'SUCCESS' }
-const FAILURE_RES = { state: 'FAILURE' }
+const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 }
+const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 }
+const PENDING_RES = { state: 'PENDING', statusCode: 202 }
 
 const state_commands = {
     "auto":    "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,40,00,05,ff,ff",
@@ -196,14 +198,14 @@ module.exports = function(app) {
 
     if ( state !== 'auto' ) {
       return { message: 'Autopilot not in auto mode', ...FAILURE_RES }
-
     } else {
       var new_value = Math.trunc(degsToRad(value) * 10000)
       var msg = util.format(heading_command, (new Date()).toISOString(), default_src,
                             autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))
 
       sendN2k([msg])
-      return SUCCESS_RES
+      verifyChange(app, target_heading_path, value, cb)
+      return PENDING_RES
     }
   }
 
@@ -213,7 +215,8 @@ module.exports = function(app) {
     } else {
       var msg = util.format(state_commands[value], (new Date()).toISOString(), default_src, deviceid)
       sendN2k([msg])
-      return SUCCESS_RES
+      verifyChange(app, state_path, value, cb)
+      return PENDING_RES
     }
   }
 
@@ -440,3 +443,22 @@ function degsToRad(degrees) {
   return degrees * (Math.PI/180.0);
 }
 
+function verifyChange(app, path, expected, cb)
+{
+  let retryCount = 0
+  const interval = setInterval(() => {
+    let val = app.getSelfPath(path)
+    //app.debug('checking %s %j should be %j', path, val, expected)
+
+    if (val !== undefined && val === expected) {
+      app.debug('SUCCESS')
+      cb(SUCCESS_RES)
+      clearInterval(interval)
+    } else {
+      if (retryCount++ > 5) {
+        cb({message: 'Did not receive change confirmation', ...FAILURE_RES})
+        clearInterval(interval)
+      }
+    }
+  }, 1000)
+}
