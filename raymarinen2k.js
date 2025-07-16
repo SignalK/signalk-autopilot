@@ -456,8 +456,8 @@ function verifyChange(app, path, expected, cb)
       clearInterval(interval)
     } else {
       if (retryCount++ > 5) {
-        cb({message: 'Did not receive change confirmation', ...FAILURE_RES})
         clearInterval(interval)
+        cb({message: 'Did not receive change confirmation', ...FAILURE_RES})
       }
     }
   }, 1000)
