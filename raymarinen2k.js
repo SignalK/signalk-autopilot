@@ -20,6 +20,7 @@ const _ = require('lodash')
 const state_path = "steering.autopilot.state.value"
 const hull_type_path = "steering.autopilot.hullType"
 const target_heading_path = "steering.autopilot.target.headingMagnetic.value"
+const target_wind_path = 'steering.autopilot.target.windAngleApparent.value'
 
 const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 }
 const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 }
@@ -89,12 +90,14 @@ const everyone_dst = '255'
 
 module.exports = function(app) {
   var deviceid
-  var pilot = {}
+  var pilot = {id: null}
   var timers = []
   var discovered
 
   pilot.start = (props) => {
     deviceid = props.deviceid
+    pilot.id = deviceid
+    app.debug('props.deviceid:', deviceid)
 
     app.registerPutHandler('vessels.self',
                            hull_type_path,
@@ -193,6 +196,21 @@ module.exports = function(app) {
     }
   }
 
+  pilot.putTargetHeadingPromise = (context, path, value, cb) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTargetHeading(context, path, value, (res) => {
+        if ( res.statusCode != 200 ) {
+          reject(new Error(res.message))
+        } else {
+          resolve()
+        }
+      })
+      if (res.state !== 'PENDING') {
+        reject(new Error(res.message))
+      }
+    })
+  }
+
   pilot.putTargetHeading = (context, path, value, cb) => {
     var state = app.getSelfPath(state_path)
 
@@ -204,20 +222,50 @@ module.exports = function(app) {
                             autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))
 
       sendN2k([msg])
-      verifyChange(app, target_heading_path, value, cb)
+      verifyChange(app, target_heading_path, new_value/10000, cb)
       return PENDING_RES
     }
   }
 
-  pilot.putState = (context, path, value, cb) => {
+  pilot.putStatePromise = (context, path, value, cb) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putState(context, path, value, (res) => {
+        if ( res.statusCode != 200 ) {
+          reject(new Error(res.message))
+        } else {
+          resolve()
+        }
+      })
+      if (res.state !== 'PENDING') {
+        reject(new Error(res.message))
+      }
+    })
+  }
+
+  pilot.putState = (context, path, value, cb, pcb) => {
     if ( !state_commands[value] ) {
       return { message: `Invalid state: ${value}`, ...FAILURE_RES }
     } else {
       var msg = util.format(state_commands[value], (new Date()).toISOString(), default_src, deviceid)
       sendN2k([msg])
-      verifyChange(app, state_path, value, cb)
+      verifyChange(app, state_path, value, cb, pcb)
       return PENDING_RES
     }
+  }
+
+  pilot.putTargetWindPromise = (context, path, value, cb) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTargetWind(context, path, value, (res) => {
+        if ( res.statusCode != 200 ) {
+          reject(new Error(res.message))
+        } else {
+          resolve()
+        }
+      })
+      if (res.state !== 'PENDING') {
+        reject(new Error(res.message))
+      }
+    })
   }
 
   pilot.putTargetWind = (context, path, value, cb)  => {
@@ -231,7 +279,8 @@ module.exports = function(app) {
                             autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))
       
       sendN2k([msg])
-      return SUCCESS_RES
+      verifyChange(app, target_wind_path, degsToRad(value), cb)
+      return PENDING_RES
     }
   }
 
@@ -294,8 +343,10 @@ module.exports = function(app) {
   }
 
   pilot.properties = () => {
-    let defaultId = '205'
+    let defaultId = deviceid ?? '205'
     let description = 'No EV-1 Found'
+
+    app.debug('***pre-discovery -> defaultId', defaultId)
 
     if ( !discovered ) {
       //let full = app.deltaCache.buildFull(undefined, [ 'sources' ])
@@ -319,7 +370,10 @@ module.exports = function(app) {
       description = `Discovered an EV-1 with id ${discovered}`
       app.debug(description)
     }
-      
+
+    pilot.id = defaultId
+    app.debug('*** post-discovery -> defaultId', defaultId)
+
     return {
       deviceid: {
         type: "string",
@@ -443,6 +497,19 @@ function degsToRad(degrees) {
   return degrees * (Math.PI/180.0);
 }
 
+function getPilotError(app) {
+  let message
+  const notifs = app.getSelfPath('notifications.autopilot')
+  if (notifs) {
+    Object.entries(notifs).map(([name, info]) => {
+      if (info.state !== 'normal') {
+        message = info.message
+      }
+    })
+  }
+  return message
+}
+
 function verifyChange(app, path, expected, cb)
 {
   let retryCount = 0
@@ -455,9 +522,21 @@ function verifyChange(app, path, expected, cb)
       cb(SUCCESS_RES)
       clearInterval(interval)
     } else {
-      if (retryCount++ > 5) {
+      let message
+      const notifs = app.getSelfPath('notifications.autopilot')
+      if (notifs) {
+        Object.entries(notifs).map(([name, info]) => {
+          if (info.value.state !== 'normal') {
+            message = info.value.message
+          }
+        })
+      }
+
+      if (message || retryCount++ > 5) {
         clearInterval(interval)
-        cb({message: 'Did not receive change confirmation', ...FAILURE_RES})
+
+        const res = {message: message || `Did not receive change confirmation ${val} != ${expected}`, ...FAILURE_RES}
+        cb(res)
       }
     }
   }, 1000)
