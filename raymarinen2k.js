@@ -196,9 +196,9 @@ module.exports = function(app) {
     }
   }
 
-  pilot.putTargetHeadingPromise = (context, path, value, cb) => {
+  pilot.putTargetHeadingPromise = (value) => {
     return new Promise((resolve, reject) => {
-      const res = pilot.putTargetHeading(context, path, value, (res) => {
+      const res = pilot.putTargetHeading(undefined, undefined, value, (res) => {
         if ( res.statusCode != 200 ) {
           reject(new Error(res.message))
         } else {
@@ -227,9 +227,9 @@ module.exports = function(app) {
     }
   }
 
-  pilot.putStatePromise = (context, path, value, cb) => {
+  pilot.putStatePromise = (value) => {
     return new Promise((resolve, reject) => {
-      const res = pilot.putState(context, path, value, (res) => {
+      const res = pilot.putState(undefined, undefined, value, (res) => {
         if ( res.statusCode != 200 ) {
           reject(new Error(res.message))
         } else {
@@ -253,9 +253,9 @@ module.exports = function(app) {
     }
   }
 
-  pilot.putTargetWindPromise = (context, path, value, cb) => {
+  pilot.putTargetWindPromise = (value) => {
     return new Promise((resolve, reject) => {
-      const res = pilot.putTargetWind(context, path, value, (res) => {
+      const res = pilot.putTargetWind(undefined, undefined, value, (res) => {
         if ( res.statusCode != 200 ) {
           reject(new Error(res.message))
         } else {
@@ -284,6 +284,17 @@ module.exports = function(app) {
     }
   }
 
+  pilot.putAdjustHeadingPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putAdjustHeading(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
+  }
+
   pilot.putAdjustHeading = (context, path, value, cb)  => {
     var state = app.getSelfPath(state_path)
 
@@ -310,6 +321,17 @@ module.exports = function(app) {
       sendN2k(changeHeadingByKey(app, deviceid, {value: aString}))
       return SUCCESS_RES
     }
+  }
+
+  pilot.putTackPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTack(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putTack = (context, path, value, cb)  => {
