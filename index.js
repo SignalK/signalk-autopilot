@@ -339,7 +339,7 @@ module.exports = function(app) {
             // map n2k device target value to API.target
             if (
               pathValue.path === 'steering.autopilot.target.windAngleApparent' &&
-              apData.mode === 'wind'
+              apData.state === 'wind'
             ) {
               apData.target = pathValue.value
               app.autopilotUpdate(apType, {target: pathValue.value})
@@ -348,7 +348,7 @@ module.exports = function(app) {
             if (
               (pathValue.path === 'steering.autopilot.target.headingTrue' ||
               pathValue.path === 'steering.autopilot.target.headingMagnetic') &&
-              apData.mode !== 'wind'
+              apData.state !== 'wind'
             ) {
               apData.target = pathValue.value
               app.autopilotUpdate(apType, {target: pathValue.value})
