@@ -218,12 +218,12 @@ module.exports = function(app) {
             return apData.target
           },
           setTarget: async (value, deviceId) => {
-            if ( apData.mode === 'auto' ) {
+            if ( apData.state === 'auto' ) {
               const r = autopilot.putTargetHeading(undefined, undefined, radiansToDegrees(value), undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
               }
-            } else if ( apData.mode === 'wind' ) {
+            } else if ( apData.state === 'wind' ) {
               const r = autopilot.putTargetWind(undefined, undefined, radiansToDegrees(value), undefined)
               if (r.state === 'FAILURE') {
                 throw new Error(r.message)
