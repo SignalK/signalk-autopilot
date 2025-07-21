@@ -19,8 +19,8 @@ const _ = require('lodash')
 
 const state_path = "steering.autopilot.state.value"
 
-const SUCCESS_RES = { state: 'SUCCESS' }
-const FAILURE_RES = { state: 'FAILURE' }
+const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 }
+const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 }
 
 const state_commands = {
   "auto":    "%s,3,126720,%s,%s,16,3b,9f,f0,81,86,21,01,fe,00,00,00,00,00,00,ff,ff,ff,ff,ff",
@@ -56,11 +56,13 @@ const everyone_dst = '255'
 
 module.exports = function(app) {
   var deviceid
-  var pilot = {}
+  var pilot = {id: null}
   var discovered
 
   pilot.start = (props) => {
     deviceid = props.converterDeviceId
+    pilot.id = deviceid
+    app.debug('props.converterDeviceId:', deviceid)
   }
 
   pilot.stop = () => {
@@ -69,6 +71,17 @@ module.exports = function(app) {
   function sendN2k(msgs) {
     app.debug("n2k_msg: " + msgs)
     msgs.map(function(msg) { app.emit('nmea2000out', msg)})
+  }
+
+  pilot.putTargetHeadingPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTargetHeading(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putTargetHeading = (context, path, value, cb) => {
@@ -87,6 +100,17 @@ module.exports = function(app) {
     }
   }
 
+  pilot.putStatePromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putState(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
+  }
+
   pilot.putState = (context, path, value, cb) => {
     if ( !state_commands[value] ) {
       return { message: `Invalid state: ${value}`, ...FAILURE_RES }
@@ -95,6 +119,17 @@ module.exports = function(app) {
       sendN2k([msg])
       return SUCCESS_RES
     }
+  }
+
+  pilot.putTargetWindPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTargetWind(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putTargetWind = (context, path, value, cb)  => {
@@ -110,6 +145,17 @@ module.exports = function(app) {
       sendN2k([msg])
       return SUCCESS_RES
     }
+  }
+
+  pilot.putAdjustHeadingPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putAdjustHeading(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putAdjustHeading = (context, path, value, cb)  => {
@@ -138,6 +184,17 @@ module.exports = function(app) {
       sendN2k(changeHeadingByKey(app, deviceid, {value: aString}))
       return SUCCESS_RES
     }
+  }
+
+  pilot.putTackPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTack(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putTack = (context, path, value, cb)  => {
@@ -171,8 +228,10 @@ module.exports = function(app) {
   }
 
   pilot.properties = () => {
-    let defaultConverterId = '115'
+    let defaultConverterId = deviceid ?? '115'
     let description = 'No SeaTalk-STNG-Converter device found'
+
+    app.debug('***pre-discovery -> defaultConverterId', defaultConverterId)
       
     if ( !discovered ) {
       const sources = app.getPath('/sources')
@@ -190,10 +249,13 @@ module.exports = function(app) {
     }
 
     if ( discovered ) {
-      converterDeviceId = discovered
+      defaultConverterId = discovered
       description = `SeaTalk-STNG-Converter with id ${discovered} discovered`
       app.debug(description)
     }
+
+    pilot.id = defaultConverterId
+    app.debug('*** post-discovery -> defaultConverterId', defaultConverterId)
 
     return {
       converterDeviceId: {
