@@ -200,10 +200,7 @@ module.exports = function(app) {
             deviceId
           ) => {
             if (isValidState(state)) {
-              const r = autopilot.putState(undefined, undefined, state, undefined)
-              if (r.state === 'FAILURE') {
-                throw new Error(r.message)
-              }
+              return autopilot.putStatePromise(undefined, undefined, state, undefined)
             } else {
               throw new Error(`${state} is not a valid value!`)
             }
@@ -219,51 +216,30 @@ module.exports = function(app) {
           },
           setTarget: async (value, deviceId) => {
             if ( apData.state === 'auto' ) {
-              const r = autopilot.putTargetHeading(undefined, undefined, radiansToDegrees(value), undefined)
-              if (r.state === 'FAILURE') {
-                throw new Error(r.message)
-              }
+              return autopilot.putTargetHeadingPromise(undefined, undefined, radiansToDegrees(value), undefined)
             } else if ( apData.state === 'wind' ) {
-              const r = autopilot.putTargetWind(undefined, undefined, radiansToDegrees(value), undefined)
-              if (r.state === 'FAILURE') {
-                throw new Error(r.message)
-              }
+              return autopilot.putTargetWindPromise(undefined, undefined, radiansToDegrees(value), undefined)
             } else {
               throw new Error(`Unable to set target value! STATE = ${apData.state}`)
-            }
-            
+            } 
           },
           adjustTarget: async (
             value,
             deviceId
           ) => {
-            const r = autopilot.putAdjustHeading(undefined, undefined, Math.floor(radiansToDegrees(value)), undefined)
-            if (r.state === 'FAILURE') {
-              throw new Error(r.message)
-            }
-            return
+            return autopilot.putAdjustHeadingPromise(undefined, undefined, Math.floor(radiansToDegrees(value)), undefined)
           },
           engage: async (deviceId) => {
-            const r = autopilot.putState(undefined, undefined, defaultEngagedState, undefined)
-            if (r.state === 'FAILURE') {
-              throw new Error(r.message) 
-            }
-            return
+            return autopilot.putStatePromise(undefined, undefined, defaultEngagedState, undefined)
           },
           disengage: async (deviceId) => {
-            const r = autopilot.putState(undefined, undefined, 'standby', undefined)
-            if (r.state === 'FAILURE') {
-              throw new Error(r.message)
-            }
-            return
+            return autopilot.putStatePromise(undefined, undefined, 'standby', undefined)           
           },
           tack: async (
             direction,
             deviceId
           ) => {
-            const r = autopilot.putTack(undefined, undefined, direction, undefined)
-            if (r.state === 'FAILURE') { throw new Error(r.message) }
-            return
+            return autopilot.putTackPromise(undefined, undefined, direction, undefined)
           },
           gybe: async (
             direction,
