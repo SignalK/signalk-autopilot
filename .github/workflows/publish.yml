@@ -1,0 +1,32 @@
+name: Publish to npm
+on:
+  release:
+    types: [created]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install and build
+        run: |
+          npm cache clean -f
+          npm install npm@latest -g
+          npm install --package-lock-only
+          npm ci && npm cache clean --force
+          npm run build
+
+      - name: Publish
+        run: |
+          if [[ "$tag" == *beta* ]];
+            then
+              npm publish --tag beta
+            else
+              npm publish --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
