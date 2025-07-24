@@ -18,6 +18,7 @@
   "author": "scott@scottbender.net",
   "license": "ISC",
   "dependencies": {
+    "@canboat/ts-pgns": "^1.10.5",
     "lodash": "^4.17.15"
   },
   "devDependencies": {
