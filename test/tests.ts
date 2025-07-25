@@ -155,7 +155,6 @@ Object.entries(types).forEach(([name, type]) => {
                 value: 3.141592653589793
               }
             ]
-
           }
         ]
       }

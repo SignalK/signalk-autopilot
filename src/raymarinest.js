@@ -89,7 +89,7 @@ module.exports = function (app) {
       var U = 0x02
       U |= quadrant << (4 + 2)
       U |= new_value % 2 << 7
-      var VW = 0x3f & ((new_value - quadrant * 90) / 2)
+      VW = 0x3f & ((new_value - quadrant * 90) / 2)
       var XY = 0x00
       var Z = 0x20
 

@@ -46,10 +46,10 @@ type ApData = {
 const apData: ApData = {
   options: {
     states: [
-      {name: 'standby', engaged: false},
-      {name: 'auto', engaged: true},
-      {name: 'wind', engaged: true},
-      {name: 'route', engaged: true},
+      { name: 'standby', engaged: false },
+      { name: 'auto', engaged: true },
+      { name: 'wind', engaged: true },
+      { name: 'route', engaged: true }
     ],
     modes: []
   },
@@ -61,7 +61,7 @@ const apData: ApData = {
 
 const defaultEngagedState = 'auto'
 const isValidState = (value: string) => {
-  return apData.options.states.findIndex(i => i.name === value) !== -1
+  return apData.options.states.findIndex((i) => i.name === value) !== -1
 }
 
 export interface Autopilot {
@@ -243,83 +243,69 @@ export default function (app: any) {
     return config
   }
 
-    // Autopilot API - register with Autopilot API
-  const registerProvider = ()=> {
+  // Autopilot API - register with Autopilot API
+  const registerProvider = () => {
     app.debug('**** intialise Sk path subscriptions *****')
     subscribeToPaths()
 
     app.debug('**** register AP Provider *****')
     try {
-      const provider : AutopilotProvider = {
-          getData: async (deviceId) => {
-            return apData
-          },
-          getState: async (deviceId:string) => {
-            return apData.state as string
-          },
-          setState: async (
-            state,
-            deviceId
-          ) => {
-            if (isValidState(state)) {
-              return autopilot.putStatePromise(state)
-            } else {
-              throw new Error(`${state} is not a valid value!`)
-            }
-          },
-          getMode: async (deviceId) => {
-            throw new Error('Not implemented!')
-          },
-          setMode: async (mode, deviceId) => {
-            throw new Error('Not implemented!')
-          },
-          getTarget: async (deviceId) => {
-            return apData.target as number
-          },
-          setTarget: async (value, deviceId) => {
-            if ( apData.state === 'auto' ) {
-              return autopilot.putTargetHeadingPromise(radiansToDegrees(value))
-            } else if ( apData.state === 'wind' ) {
-              return autopilot.putTargetWindPromise(radiansToDegrees(value))
-            } else {
-              throw new Error(`Unable to set target value! STATE = ${apData.state}`)
-            } 
-          },
-          adjustTarget: async (
-            value,
-            deviceId
-          ) => {
-            return autopilot.putAdjustHeadingPromise(Math.floor(radiansToDegrees(value)))
-          },
-          engage: async (deviceId) => {
-            return autopilot.putStatePromise(defaultEngagedState)
-          },
-          disengage: async (deviceId) => {
-            return autopilot.putStatePromise('standby')
-          },
-          tack: async (
-            direction,
-            deviceId
-          ) => {
-            return autopilot.putTackPromise(direction)
-          },
-          gybe: async (
-            direction,
-            deviceId
-          ) => {
-            throw new Error('Not implemented!')
-          },
-          dodge: async (
-            direction,
-            deviceId
-          ) => {
-            throw new Error('Not implemented!')
+      const provider: AutopilotProvider = {
+        getData: async (_deviceId) => {
+          return apData
+        },
+        getState: async (_deviceId: string) => {
+          return apData.state as string
+        },
+        setState: async (state, _deviceId) => {
+          if (isValidState(state)) {
+            return autopilot.putStatePromise(state)
+          } else {
+            throw new Error(`${state} is not a valid value!`)
           }
+        },
+        getMode: async (_deviceId) => {
+          throw new Error('Not implemented!')
+        },
+        setMode: async (_mode, _deviceId) => {
+          throw new Error('Not implemented!')
+        },
+        getTarget: async (_deviceId) => {
+          return apData.target as number
+        },
+        setTarget: async (value, _deviceId) => {
+          if (apData.state === 'auto') {
+            return autopilot.putTargetHeadingPromise(radiansToDegrees(value))
+          } else if (apData.state === 'wind') {
+            return autopilot.putTargetWindPromise(radiansToDegrees(value))
+          } else {
+            throw new Error(
+              `Unable to set target value! STATE = ${apData.state}`
+            )
+          }
+        },
+        adjustTarget: async (value, _deviceId) => {
+          return autopilot.putAdjustHeadingPromise(
+            Math.floor(radiansToDegrees(value))
+          )
+        },
+        engage: async (_deviceId) => {
+          return autopilot.putStatePromise(defaultEngagedState)
+        },
+        disengage: async (_deviceId) => {
+          return autopilot.putStatePromise('standby')
+        },
+        tack: async (direction, _deviceId) => {
+          return autopilot.putTackPromise(direction)
+        },
+        gybe: async (_direction, _deviceId) => {
+          throw new Error('Not implemented!')
+        },
+        dodge: async (_direction, _deviceId) => {
+          throw new Error('Not implemented!')
         }
-      app.registerAutopilotProvider(
-        provider,
-        [apType]
-      )
+      }
+      app.registerAutopilotProvider(provider, [apType])
     } catch (error) {
       app.debug(error)
     }
@@ -328,23 +314,23 @@ export default function (app: any) {
   // Subscribe to autopilot paths
   const subscribeToPaths = () => {
     app.subscriptionmanager?.subscribe(
-        {
-          context: 'vessels.self',
-          subscribe: [
-            {
-              path: 'steering.autopilot.*',
-              period: 500
-            }
-          ]
-        },
-        onStop,
-        (err: any) => {
-          console.log(`Autopilot subscriptions failed! ${err}`)
-        },
-        (msg: any) => {
-          processAPDeltas(msg)
-        }
-      )
+      {
+        context: 'vessels.self',
+        subscribe: [
+          {
+            path: 'steering.autopilot.*',
+            period: 500
+          }
+        ]
+      },
+      onStop,
+      (err: any) => {
+        console.log(`Autopilot subscriptions failed! ${err}`)
+      },
+      (msg: any) => {
+        processAPDeltas(msg)
+      }
+    )
   }
 
   /** Process deltas for steering.autopilot data
@@ -367,9 +353,13 @@ export default function (app: any) {
               return
             }
             // map n2k device state to API.state & API.mode
-            if (pathValue.path === 'steering.autopilot.state') {             
-              apData.state = isValidState(pathValue.value) ? pathValue.value : null
-              const stateObj = apData.options.states.find(i => i.name === pathValue.value)
+            if (pathValue.path === 'steering.autopilot.state') {
+              apData.state = isValidState(pathValue.value)
+                ? pathValue.value
+                : null
+              const stateObj = apData.options.states.find(
+                (i) => i.name === pathValue.value
+              )
               apData.engaged = stateObj ? stateObj.engaged : false
               app.autopilotUpdate(apType, {
                 state: apData.state,
@@ -379,20 +369,22 @@ export default function (app: any) {
 
             // map n2k device target value to API.target
             if (
-              pathValue.path === 'steering.autopilot.target.windAngleApparent' &&
+              pathValue.path ===
+                'steering.autopilot.target.windAngleApparent' &&
               apData.state === 'wind'
             ) {
               apData.target = pathValue.value
-              app.autopilotUpdate(apType, {target: pathValue.value})
+              app.autopilotUpdate(apType, { target: pathValue.value })
             }
-            
+
             if (
               (pathValue.path === 'steering.autopilot.target.headingTrue' ||
-              pathValue.path === 'steering.autopilot.target.headingMagnetic') &&
+                pathValue.path ===
+                  'steering.autopilot.target.headingMagnetic') &&
               apData.state !== 'wind'
             ) {
               apData.target = pathValue.value
-              app.autopilotUpdate(apType, {target: pathValue.value})
+              app.autopilotUpdate(apType, { target: pathValue.value })
             }
           }
         })
@@ -400,10 +392,9 @@ export default function (app: any) {
     })
   }
 
-  const radiansToDegrees = (value: number) => value * 180 / Math.PI
+  const radiansToDegrees = (value: number) => (value * 180) / Math.PI
 
-  const degreesToRadians = (value: number) => value * (Math.PI/180.0)
-
+  //const degreesToRadians = (value: number) => value * (Math.PI / 180.0)
 
   return plugin
 }
