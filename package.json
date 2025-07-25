@@ -8,7 +8,7 @@
     "create-release": "github-create-release --owner signalk --repository signalk-autopilot",
     "release": "git tag -d v$npm_package_version; git tag v$npm_package_version && git push --tags && git push && npm run create-release",
     "start": "webpack serve --config webpack.dev.config.js",
-    "build-webpack": "webpack --config webpack.prod.config.js --progress",
+    "build-webpack": "webpack --config webpack.prod.config.js",
     "lint": "eslint --fix ./src/* ./test/*",
     "prettier": "prettier --write ./src/* ./test/*",
     "ci-lint": "eslint ./src/* ./test/* && prettier --check ./src/* ./test/*",
