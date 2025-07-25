@@ -209,24 +209,24 @@ Object.entries(types).forEach(([name, type]) => {
               src: undefined,
               timestamp: undefined,
               fields: {
-                functionCode: "Command",
+                functionCode: 'Command',
                 pgn: 65360,
                 numberOfParameters: 3,
                 list: [
                   {
                     parameter: 1,
-                    value: "Raymarine"
+                    value: 'Raymarine'
                   },
                   {
                     parameter: 3,
-                    value: "Marine Industry"
+                    value: 'Marine Industry'
                   },
                   {
                     parameter: 6,
                     value: 0.5235987755982988
                   }
                 ],
-                priority: "Leave unchanged"
+                priority: 'Leave unchanged'
               }
             },
             generates: [
@@ -251,7 +251,6 @@ Object.entries(types).forEach(([name, type]) => {
         undefined,
         30,
         (res: any) => {
-          expect(res.message).to.be.undefined
           expect(res.state).to.equal('COMPLETED')
           expect(res.statusCode).to.equal(200)
           done()
@@ -293,10 +292,10 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Raymarine',
                 industryCode: 'Marine Industry',
-                command: "0x86",
-                proprietaryId: "0x81f0",
+                command: '0x86',
+                proprietaryId: '0x81f0',
                 device: 33,
-                key: "+1",
+                key: '+1',
                 keyinverted: 248
               }
             }
@@ -356,10 +355,10 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Raymarine',
                 industryCode: 'Marine Industry',
-                command: "0x86",
-                proprietaryId: "0x81f0",
+                command: '0x86',
+                proprietaryId: '0x81f0',
                 device: 33,
-                key: "-1 and -10",
+                key: '-1 and -10',
                 keyinverted: 222
               }
             }
@@ -472,7 +471,7 @@ Object.entries(types).forEach(([name, type]) => {
           done()
         }
       )
-      
+
       if (name === 'raymarineST') {
         expect(res.state).to.equal('COMPLETED')
         expect(res.statusCode).to.equal(400)

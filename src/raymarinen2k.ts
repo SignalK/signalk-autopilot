@@ -534,11 +534,14 @@ function tackTo(app: any, deviceid: number, command_json: any) {
   }
 
   return [
-    new PGN_126720_Seatalk1Keystroke({
-      device: 33,
-      key: st_keys[key].key,
-      keyinverted: st_keys[key].inverted
-    }, deviceid)
+    new PGN_126720_Seatalk1Keystroke(
+      {
+        device: 33,
+        key: st_keys[key].key,
+        keyinverted: st_keys[key].inverted
+      },
+      deviceid
+    )
   ]
 }
 
@@ -546,11 +549,14 @@ function changeHeadingByKey(app: any, deviceid: number, key: string) {
   app.debug('changeHeadingByKey: ' + key)
 
   return [
-    new PGN_126720_Seatalk1Keystroke({
-      device: 33, //??
-      key: st_keys[key].key,
-      keyinverted: st_keys[key].inverted
-    }, deviceid)
+    new PGN_126720_Seatalk1Keystroke(
+      {
+        device: 33, //??
+        key: st_keys[key].key,
+        keyinverted: st_keys[key].inverted
+      },
+      deviceid
+    )
   ]
 
   //return [util.format(key_command, (new Date()).toISOString(), default_src, everyone_dst, keys_code[key])]
