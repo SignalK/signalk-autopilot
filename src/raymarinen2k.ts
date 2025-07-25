@@ -130,9 +130,11 @@ export default function (app: any): Autopilot {
   let discovered: number | undefined
 
   const pilot: Autopilot = {
+    id: deviceid,
     start: (props) => {
       if (props.deviceid !== undefined) {
         deviceid = Number(props.deviceid)
+        pilot.id = deviceid
         app.debug('props.deviceid:', deviceid)
       }
 
