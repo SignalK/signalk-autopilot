@@ -99,6 +99,7 @@ module.exports = function(app) {
     pilot.id = deviceid
     app.debug('props.deviceid:', deviceid)
 
+
     app.registerPutHandler('vessels.self',
                            hull_type_path,
                            pilot.putHullType)
