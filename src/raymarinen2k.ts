@@ -22,7 +22,6 @@ import {
   PGN_65379_SeatalkPilotMode,
   PGN_126720_Seatalk1Keystroke,
   PGN_65360_SeatalkPilotLockedHeading,
-  PGN_65345_SeatalkPilotWindDatum,
   GroupFunction,
   Priority,
   SeatalkKeystroke
@@ -353,19 +352,19 @@ export default function (app: any): Autopilot {
       if (state !== 'wind') {
         return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
       } else {
-        //var new_value = Math.trunc(value * 10000)
+        const new_value = degsToRad(value)
 
         const pgn = createNmeaGroupFunction(
           GroupFunction.Command,
-          new PGN_65345_SeatalkPilotWindDatum({
-            windDatum: value
+          new PGN_65360_SeatalkPilotLockedHeading({
+            targetHeadingMagnetic: new_value
           }),
           { priority: Priority.LeaveUnchanged },
           deviceid
         )
 
         sendN2k([pgn])
-        verifyChange(app, target_wind_path, value, cb)
+        verifyChange(app, target_wind_path, new_value, cb)
         return PENDING_RES
       }
     },
@@ -539,7 +538,7 @@ function tackTo(app: any, deviceid: number, command_json: any) {
       device: 33,
       key: st_keys[key].key,
       keyinverted: st_keys[key].inverted
-    })
+    }, deviceid)
   ]
 }
 
@@ -551,7 +550,7 @@ function changeHeadingByKey(app: any, deviceid: number, key: string) {
       device: 33, //??
       key: st_keys[key].key,
       keyinverted: st_keys[key].inverted
-    })
+    }, deviceid)
   ]
 
   //return [util.format(key_command, (new Date()).toISOString(), default_src, everyone_dst, keys_code[key])]

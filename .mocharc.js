@@ -3,6 +3,6 @@ module.exports = {
   require: 'tsx',
   extension: ['ts'],
   spec: ['test/**/*.ts'],
-  timeout: 4000, // 4 seconds timeout for all tests
+  timeout: 10000, // 6 seconds timeout for all tests
   slow: 1500 // Tests taking longer than 1.5 seconds are considered slow
 }

@@ -187,7 +187,7 @@ Object.entries(types).forEach(([name, type]) => {
         raymarineST: [
           {
             event: 'seatalkOut',
-            value: '$STALK,10,01,0A,14*48'
+            value: '$STALK,10,01,0,3c*21'
           }
         ],
         raySTNGConv: [
@@ -209,12 +209,24 @@ Object.entries(types).forEach(([name, type]) => {
               src: undefined,
               timestamp: undefined,
               fields: {
-                functionCode: 'Command',
-                requestGroupFunction: 'Request',
-                manufacturerCode: 'Raymarine',
-                industryCode: 'Marine Industry',
-                messageId: 3,
-                data: new ArrayBuffer(4)
+                functionCode: "Command",
+                pgn: 65360,
+                numberOfParameters: 3,
+                list: [
+                  {
+                    parameter: 1,
+                    value: "Raymarine"
+                  },
+                  {
+                    parameter: 3,
+                    value: "Marine Industry"
+                  },
+                  {
+                    parameter: 6,
+                    value: 0.5235987755982988
+                  }
+                ],
+                priority: "Leave unchanged"
               }
             },
             generates: [
@@ -239,7 +251,277 @@ Object.entries(types).forEach(([name, type]) => {
         undefined,
         30,
         (res: any) => {
+          expect(res.message).to.be.undefined
           expect(res.state).to.equal('COMPLETED')
+          expect(res.statusCode).to.equal(200)
+          done()
+        }
+      )
+      expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
+      if (res.state === 'COMPLETED') {
+        expect(res.statusCode).to.equal(200)
+        done()
+      }
+    })
+
+    it(`putAdjustHeading works`, (done) => {
+      const expected: { [key: string]: ExpectedEvent[] } = {
+        raymarineST: [
+          {
+            event: 'seatalkOut',
+            value: '$STALK,86,11,07,F8*36'
+          }
+        ],
+        raySTNGConv: [
+          {
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,7,126720,1,255,16,3b,9f,f0,81,86,21,07,f8,07,01,02,00,00,00,00,00,00,00,00,00,00,00,ff,ff,ff,ff,ff/
+          }
+        ],
+        raymarineN2K: [
+          {
+            event: 'nmea2000JsonOut',
+            value: {
+              description: undefined,
+              pgn: 126720,
+              prio: 3,
+              dst: 204,
+              input: undefined,
+              src: undefined,
+              timestamp: undefined,
+              fields: {
+                manufacturerCode: 'Raymarine',
+                industryCode: 'Marine Industry',
+                command: "0x86",
+                proprietaryId: "0x81f0",
+                device: 33,
+                key: "+1",
+                keyinverted: 248
+              }
+            }
+          }
+        ]
+      }
+
+      const app = new TestApp(expected[name], {
+        'steering.autopilot.state.value': 'auto'
+      })
+
+      const autopilot: Autopilot = type(app)
+      autopilot.start({})
+
+      const res = autopilot.putAdjustHeading(
+        undefined,
+        undefined,
+        1,
+        (res: any) => {
+          expect(res.state).to.equal('COMPLETED')
+          done()
+        }
+      )
+      expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
+      if (res.state === 'COMPLETED') {
+        expect(res.statusCode).to.equal(200)
+        done()
+      }
+    })
+
+    it(`putTack works`, (done) => {
+      const expected: { [key: string]: ExpectedEvent[] } = {
+        raymarineST: [
+          {
+            event: 'seatalkOut',
+            value: '$STALK,86,11,21,DE*4D'
+          }
+        ],
+        raySTNGConv: [
+          {
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,7,126720,1,255,16,3b,9f,f0,81,86,21,21,de,07,01,02,00,00,00,00,00,00,00,00,00,00,00,ff,ff,ff,ff,ff/
+          }
+        ],
+        raymarineN2K: [
+          {
+            event: 'nmea2000JsonOut',
+            value: {
+              description: undefined,
+              pgn: 126720,
+              prio: 3,
+              dst: 204,
+              input: undefined,
+              src: undefined,
+              timestamp: undefined,
+              fields: {
+                manufacturerCode: 'Raymarine',
+                industryCode: 'Marine Industry',
+                command: "0x86",
+                proprietaryId: "0x81f0",
+                device: 33,
+                key: "-1 and -10",
+                keyinverted: 222
+              }
+            }
+          }
+        ]
+      }
+
+      const app = new TestApp(expected[name], {
+        'steering.autopilot.state.value': 'wind'
+      })
+
+      const autopilot: Autopilot = type(app)
+      autopilot.start({})
+
+      const res = autopilot.putTack(
+        undefined,
+        undefined,
+        'port',
+        (res: any) => {
+          expect(res.state).to.equal('COMPLETED')
+          done()
+        }
+      )
+      expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
+      if (res.state === 'COMPLETED') {
+        expect(res.statusCode).to.equal(200)
+        done()
+      }
+    })
+
+    it(`putAdvanceWaypoint works`, (done) => {
+      const expected: { [key: string]: ExpectedEvent[] } = {
+        raymarineST: [
+          {
+            event: 'error',
+            value: 'Autopilot next waypoint not implemented'
+          }
+        ],
+        raySTNGConv: [
+          {
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,115,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff/
+          },
+          {
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,115,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50/
+          }
+        ],
+        raymarineN2K: [
+          {
+            event: 'nmea2000JsonOut',
+            value: {
+              description: undefined,
+              pgn: 126208,
+              prio: 3,
+              dst: 204,
+              input: undefined,
+              src: undefined,
+              timestamp: undefined,
+              fields: {
+                functionCode: 'Command',
+                pgn: 65379,
+                numberOfParameters: 4,
+                list: [
+                  {
+                    parameter: 1,
+                    value: 'Raymarine'
+                  },
+                  {
+                    parameter: 3,
+                    value: 'Marine Industry'
+                  },
+                  {
+                    parameter: 4,
+                    value: 'No Drift, COG referenced (In track, course changes)'
+                  },
+                  {
+                    parameter: 5,
+                    value: 65535
+                  }
+                ],
+                priority: 'Leave unchanged'
+              }
+            }
+          }
+        ]
+      }
+
+      const app = new TestApp(expected[name], {
+        'steering.autopilot.state.value': 'route'
+      })
+
+      const autopilot: Autopilot = type(app)
+      autopilot.start({})
+
+      const res = autopilot.putAdvanceWaypoint(
+        undefined,
+        undefined,
+        1,
+        (res: any) => {
+          if (name === 'raymarineST') {
+            expect(res.state).to.equal('COMPLETED')
+            expect(res.statusCode).to.equal(400)
+          } else {
+            expect(res.state).to.equal('COMPLETED')
+            expect(res.statusCode).to.equal(200)
+          }
+          done()
+        }
+      )
+      
+      if (name === 'raymarineST') {
+        expect(res.state).to.equal('COMPLETED')
+        expect(res.statusCode).to.equal(400)
+        done()
+      } else {
+        expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
+        if (res.state === 'COMPLETED') {
+          expect(res.statusCode).to.equal(200)
+          done()
+        }
+      }
+    })
+
+    it(`putHullType works`, (done) => {
+      if (name !== 'raymarineN2K') {
+        // putHullType is only implemented in raymarineN2K
+        done()
+        return
+      }
+
+      const expected: { [key: string]: ExpectedEvent[] } = {
+        raymarineN2K: [
+          {
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,08,52,ff/
+          }
+        ]
+      }
+
+      const app = new TestApp(expected[name], {
+        'steering.autopilot.state.value': 'standby'
+      })
+
+      const autopilot: Autopilot = type(app)
+      autopilot.start({})
+
+      if (!autopilot.putHullType) {
+        done()
+        return
+      }
+
+      const res = autopilot.putHullType(
+        undefined,
+        undefined,
+        'power',
+        (res: any) => {
+          expect(res.state).to.equal('COMPLETED')
+          expect(res.statusCode).to.equal(200)
           done()
         }
       )
