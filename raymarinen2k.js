@@ -16,6 +16,17 @@
 
 const util = require('util')
 const _ = require('lodash')
+const { 
+  createNmeaGroupFunction, 
+  SeatalkPilotMode16, 
+  PGN_65379_SeatalkPilotMode, 
+  PGN_126720_Seatalk1Keystroke,
+  PGN_65360_SeatalkPilotLockedHeading,
+  PGN_65345_SeatalkPilotWindDatum,
+  GroupFunction, 
+  Priority,
+  SeatalkKeystroke
+} = require('@canboat/ts-pgns')
 
 const state_path = "steering.autopilot.state.value"
 const hull_type_path = "steering.autopilot.hullType"
@@ -32,6 +43,14 @@ const state_commands = {
     "route":   "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,80,01,05,ff,ff",
     "standby": "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,00,00,05,ff,ff"
 }
+
+const state_modes = {
+  "auto": SeatalkPilotMode16.AutoCompassCommanded,
+  "wind": SeatalkPilotMode16.VaneWindMode,
+  "route": SeatalkPilotMode16.TrackMode,
+  "standby": SeatalkPilotMode16.Standby
+}
+
 const keys_code = {
     "+1":      "07,f8",
     "+10":     "08,f7",
@@ -41,12 +60,20 @@ const keys_code = {
     "+1+10":   "22,dd"
 }
 
+const st_keys = {
+  "+1": { key: SeatalkKeystroke.Plus1, inverted: 248 },
+  "+10": { key: SeatalkKeystroke.Plus10, inverted: 247 },
+  "-1": { key: SeatalkKeystroke._1, inverted: 250 },
+  "-10": { key: SeatalkKeystroke._10, inverted: 249 },
+  "-1-10": { key: SeatalkKeystroke._1And10, inverted: 222 },
+  "+1+10": { key: SeatalkKeystroke.Plus1AndPlus10, inverted: 221 }
+}
+
 const key_command = "%s,7,126720,%s,%s,22,3b,9f,f0,81,86,21,%s,ff,ff,ff,ff,ff,c1,c2,cd,66,80,d3,42,b1,c8"
 const heading_command = "%s,3,126208,%s,%s,14,01,50,ff,00,f8,03,01,3b,07,03,04,06,%s,%s"
 const wind_direction_command = "%s,3,126208,%s,%s,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,%s,%s"
 const raymarine_ttw_Mode = "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
 const raymarine_ttw = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
-const confirm_tack = "%s,2,126720,%s,%s,7,3b,9f,f0,81,90,00,03"
 const hull_type_command = "%s,3,126208,%s,%s,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,%s,52,ff"
 
 
@@ -163,8 +190,14 @@ module.exports = function(app) {
   }
 
   function sendN2k(msgs) {
-    app.debug("n2k_msg: " + msgs)
-    msgs.map(function(msg) { app.emit('nmea2000out', msg)})
+      app.debug("n2k_msg: " + JSON.stringify(msgs))
+    msgs.map(function(msg) { 
+      if ( typeof msg === 'string' ) {
+        app.emit('nmea2000out', msg)
+      } else {
+        app.emit('nmea2000JsonOut', msg)
+      }
+    })
   }
 
   pilot.putHullType = (context, path, value, cb) => {
@@ -218,12 +251,17 @@ module.exports = function(app) {
     if ( state !== 'auto' ) {
       return { message: 'Autopilot not in auto mode', ...FAILURE_RES }
     } else {
-      var new_value = Math.trunc(degsToRad(value) * 10000)
-      var msg = util.format(heading_command, (new Date()).toISOString(), default_src,
-                            autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))
-
-      sendN2k([msg])
-      verifyChange(app, target_heading_path, new_value/10000, cb)
+      var new_value = Math.trunc(degsToRad(value))
+      const pgn = createNmeaGroupFunction(
+        GroupFunction.Command,
+        new PGN_65360_SeatalkPilotLockedHeading({
+          targetHeadingMagnetic: new_value
+        }),
+        { priority: Priority.LeaveUnchanged },
+        deviceid
+      )
+      sendN2k([pgn])
+      verifyChange(app, target_heading_path, new_value, cb)
       return PENDING_RES
     }
   }
@@ -244,11 +282,23 @@ module.exports = function(app) {
   }
 
   pilot.putState = (context, path, value, cb, pcb) => {
-    if ( !state_commands[value] ) {
+    if ( !state_modes[value] ) {
       return { message: `Invalid state: ${value}`, ...FAILURE_RES }
     } else {
-      var msg = util.format(state_commands[value], (new Date()).toISOString(), default_src, deviceid)
-      sendN2k([msg])
+      //var msg = util.format(state_commands[value], (new Date()).toISOString(), default_src, deviceid)
+      //sendN2k([msg])
+
+      const pgn = createNmeaGroupFunction(
+        GroupFunction.Command,
+        new PGN_65379_SeatalkPilotMode({
+          pilotMode: state_modes[value],
+          subMode: 0xffff
+        }),
+        { priority: Priority.LeaveUnchanged },
+        deviceid
+      )
+
+      sendN2k([pgn])
       verifyChange(app, state_path, value, cb, pcb)
       return PENDING_RES
     }
@@ -275,12 +325,19 @@ module.exports = function(app) {
     if ( state !== 'wind' ) {
       return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
     } else {
-      var new_value = Math.trunc(value * 10000)
-      var msg = util.format(wind_direction_command, (new Date()).toISOString(), default_src,
-                            autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))
-      
-      sendN2k([msg])
-      verifyChange(app, target_wind_path, degsToRad(value), cb)
+      //var new_value = Math.trunc(value * 10000)
+
+      const pgn = createNmeaGroupFunction(
+        GroupFunction.Command,
+        new PGN_65345_SeatalkPilotWindDatum({
+          targetWindAngle: value
+        }),
+        { priority: Priority.LeaveUnchanged },
+        deviceid
+      )
+
+      sendN2k([pgn])
+      verifyChange(app, target_wind_path, value, cb)
       return PENDING_RES
     }
   }
@@ -422,94 +479,65 @@ function padd(n, p, c)
   return (pad + n).slice(-pad.length);
 }
 
-function changeHeading(app, deviceid, command_json)
-{
-  var ammount = command_json["value"]
-  var state = app.getSelfPath(state_path)
-  var new_value
-  var command_format
-  var n2k_msgs
-  
-  app.debug("changeHeading: " + state + " " + ammount)
-  if ( state == "auto" )
-  {
-    var current = app.getSelfPath(target_heading_path)
-    new_value = radsToDeg(current) + ammount
-
-    if ( new_value < 0 ) {
-      new_value = 360 + new_value
-    } else if ( new_value > 360 ) {
-      new_value = new_value - 360
-    }
-    
-    app.debug(`current heading: ${radsToDeg(current)} new value: ${new_value}`)
-
-    command_format = heading_command
-  }
-  else if ( state == "wind" )
-  {
-    var current = app.getSelfPath(target_wind_path)
-    new_value = radsToDeg(current) + ammount
-    
-    if ( new_value < 0 )
-      new_value = 360 + new_value
-    else if ( new_value > 360 )
-      new_value = new_value - 360
-
-    app.debug(`current wind angle: ${radsToDeg(current)} new value: ${new_value}`)
-    command_format = wind_direction_command
-  }
-  else
-  {
-    //error
-  }
-  if ( new_value )
-  {
-    new_value = Math.trunc(degsToRad(new_value) * 10000)
-    n2k_msgs = [util.format(command_format, (new Date()).toISOString(), default_src,
-                            autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))]
-  }
-  return n2k_msgs
-}
-
-function setState(app, deviceid, command_json)
-{
-  var state = command_json["value"]
-  app.debug("setState: " + state)
-  return [util.format(state_commands[state], (new Date()).toISOString(), default_src, deviceid)]
-}
-
 function tackTo(app, deviceid, command_json)
 {
   var tackTo = command_json["value"]
   app.debug("tackTo: " + tackTo)
+  let key
   if (tackTo === "port")
   {
-    return [util.format(key_command, (new Date()).toISOString(), default_src, everyone_dst, keys_code["-1-10"])]
+    key = "-1-10"
   }
   else if (tackTo === "starboard")
   {
-    return [util.format(key_command, (new Date()).toISOString(), default_src, everyone_dst, keys_code["+1+10"])]
+    key = "+1+10"
   }
   else
   {
     app.debug("tackTo: unknown " + tackTo)
+    return []
   }
+
+  return [new PGN_126720_Seatalk1Keystroke({
+    device: 33,
+    key: st_keys[key].key,
+    keyinverted: st_keys[key].inverted
+  })]
 }
 
 function changeHeadingByKey(app, deviceid, command_json)
 {
   var key = command_json["value"]
   app.debug("changeHeadingByKey: " + key)
-  return [util.format(key_command, (new Date()).toISOString(), default_src, everyone_dst, keys_code[key])]
+
+  return [new PGN_126720_Seatalk1Keystroke({
+    device: 33, //??
+    key: st_keys[key].key,
+    keyinverted: st_keys[key].inverted
+  })]
+  
+  //return [util.format(key_command, (new Date()).toISOString(), default_src, everyone_dst, keys_code[key])]
 }
 
 function advanceWaypoint(app, deviceid, command_json)
 {
+  /*
   return [util.format(raymarine_ttw_Mode, (new Date()).toISOString(),
-                      default_src, deviceid),
-          util.format(raymarine_ttw, (new Date()).toISOString(),
-                      default_src, deviceid)]
+    default_src, deviceid),
+  util.format(raymarine_ttw, (new Date()).toISOString(),
+    default_src, deviceid)]
+    */
+
+  const pgn = createNmeaGroupFunction(
+    GroupFunction.Command,
+    new PGN_65379_SeatalkPilotMode({
+      pilotMode: SeatalkPilotMode16.NoDriftCogReferencedinTrackCourseChanges,
+      subMode: 0xffff
+    }),
+    { priority: Priority.LeaveUnchanged },
+    deviceid
+  )
+  returen [pgn]
 }
 
 function radsToDeg(radians) {
