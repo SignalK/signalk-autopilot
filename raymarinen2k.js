@@ -18,9 +18,13 @@ const util = require('util')
 const _ = require('lodash')
 
 const state_path = "steering.autopilot.state.value"
+const hull_type_path = "steering.autopilot.hullType"
+const target_heading_path = "steering.autopilot.target.headingMagnetic.value"
+const target_wind_path = 'steering.autopilot.target.windAngleApparent.value'
 
-const SUCCESS_RES = { state: 'SUCCESS' }
-const FAILURE_RES = { state: 'FAILURE' }
+const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 }
+const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 }
+const PENDING_RES = { state: 'PENDING', statusCode: 202 }
 
 const state_commands = {
     "auto":    "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,40,00,05,ff,ff",
@@ -43,6 +47,39 @@ const wind_direction_command = "%s,3,126208,%s,%s,14,01,41,ff,00,f8,03,01,3b,07,
 const raymarine_ttw_Mode = "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
 const raymarine_ttw = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
 const confirm_tack = "%s,2,126720,%s,%s,7,3b,9f,f0,81,90,00,03"
+const hull_type_command = "%s,3,126208,%s,%s,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,%s,52,ff"
+
+
+const hullTypes = {
+  "sailSlowTurn": {
+    title: "Sail (slow turn)",
+    abbrev: "Sail Slow",
+    code: "01"
+  },
+  "sail": {
+    title: "Sail",
+    code: "00"
+  },
+  "sailCatamaran": {
+    title: "Sail Catamaran",
+    abbrev: "Sail Cat",
+    code: "02"
+  },
+  "power": {
+    title: "Power",
+    code: "08"
+  },
+  "powerSlowTurn": {
+    title: "Power (slow turn)",
+    abbrev: "Power Slow",
+    code: "03"
+  },
+  "powerFastTurn": {
+    title: "Power (fast turn)",
+    abbrev: "Power Fast",
+    code: "05"
+  }
+}
 
 const keep_alive = "%s,7,65384,%s,255,8,3b,9f,00,00,00,00,00,00"
 const keep_alive2 = "%s,7,126720,%s,255,7,3b,9f,f0,81,90,00,03"
@@ -61,6 +98,47 @@ module.exports = function(app) {
     deviceid = props.deviceid
     pilot.id = deviceid
     app.debug('props.deviceid:', deviceid)
+
+
+    app.registerPutHandler('vessels.self',
+                           hull_type_path,
+                           pilot.putHullType)
+
+    const possibleValues = []
+
+    Object.keys(hullTypes).forEach(key => {
+      const type = hullTypes[key]
+      possibleValues.push({
+        title: type.title,
+        abbrev: type.abbrev,
+        value: key
+      })
+    })
+
+    app.handleMessage("autopilot", {
+      updates: [
+        {
+          values: [
+            {
+              path: hull_type_path,
+              value: "unknown"
+            }
+          ]
+        },
+        {
+          meta: [
+            {
+              path: hull_type_path,
+              value: {
+                  displayName: 'Vessel Hull Type',
+                type: 'multiple',
+                possibleValues
+              }
+            },
+          ]
+        }
+      ]
+    })
 
     if ( props.controlHead ) {
       timers.push(setInterval(() => {
@@ -89,30 +167,106 @@ module.exports = function(app) {
     msgs.map(function(msg) { app.emit('nmea2000out', msg)})
   }
 
+  pilot.putHullType = (context, path, value, cb) => {
+    const type = hullTypes[value]
+    const state = app.getSelfPath(state_path)
+
+    if ( type === undefined ) {
+      return { message: 'Invalid hull type', ...FAILURE_RES }
+    } else if ( state !== 'standby' ) {
+      return { message: 'Autopilot not in standby', ...FAILURE_RES }
+    } else {
+       var msg = util.format(hull_type_command, (new Date()).toISOString(), default_src,
+                            autopilot_dst, type.code)
+
+      sendN2k([msg])
+      app.handleMessage("autopilot", {
+        updates: [
+          {
+            values: [
+              {
+                path: hull_type_path,
+                value
+              }
+            ]
+          }
+        ]
+      })
+      
+      return SUCCESS_RES
+    }
+  }
+
+  pilot.putTargetHeadingPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTargetHeading(undefined, undefined, value, (res) => {
+        if ( res.statusCode != 200 ) {
+          reject(new Error(res.message))
+        } else {
+          resolve()
+        }
+      })
+      if (res.state !== 'PENDING') {
+        reject(new Error(res.message))
+      }
+    })
+  }
+
   pilot.putTargetHeading = (context, path, value, cb) => {
     var state = app.getSelfPath(state_path)
 
     if ( state !== 'auto' ) {
       return { message: 'Autopilot not in auto mode', ...FAILURE_RES }
-
     } else {
       var new_value = Math.trunc(degsToRad(value) * 10000)
       var msg = util.format(heading_command, (new Date()).toISOString(), default_src,
                             autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))
 
       sendN2k([msg])
-      return SUCCESS_RES
+      verifyChange(app, target_heading_path, new_value/10000, cb)
+      return PENDING_RES
     }
   }
 
-  pilot.putState = (context, path, value, cb) => {
+  pilot.putStatePromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putState(undefined, undefined, value, (res) => {
+        if ( res.statusCode != 200 ) {
+          reject(new Error(res.message))
+        } else {
+          resolve()
+        }
+      })
+      if (res.state !== 'PENDING') {
+        reject(new Error(res.message))
+      }
+    })
+  }
+
+  pilot.putState = (context, path, value, cb, pcb) => {
     if ( !state_commands[value] ) {
       return { message: `Invalid state: ${value}`, ...FAILURE_RES }
     } else {
       var msg = util.format(state_commands[value], (new Date()).toISOString(), default_src, deviceid)
       sendN2k([msg])
-      return SUCCESS_RES
+      verifyChange(app, state_path, value, cb, pcb)
+      return PENDING_RES
     }
+  }
+
+  pilot.putTargetWindPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTargetWind(undefined, undefined, value, (res) => {
+        if ( res.statusCode != 200 ) {
+          reject(new Error(res.message))
+        } else {
+          resolve()
+        }
+      })
+      if (res.state !== 'PENDING') {
+        reject(new Error(res.message))
+      }
+    })
   }
 
   pilot.putTargetWind = (context, path, value, cb)  => {
@@ -126,8 +280,20 @@ module.exports = function(app) {
                             autopilot_dst, padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))
       
       sendN2k([msg])
-      return SUCCESS_RES
+      verifyChange(app, target_wind_path, degsToRad(value), cb)
+      return PENDING_RES
     }
+  }
+
+  pilot.putAdjustHeadingPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putAdjustHeading(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putAdjustHeading = (context, path, value, cb)  => {
@@ -158,12 +324,23 @@ module.exports = function(app) {
     }
   }
 
+  pilot.putTackPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTack(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
+  }
+
   pilot.putTack = (context, path, value, cb)  => {
     var state = app.getSelfPath(state_path)
-    
-    if ( state !== 'wind' ) {
-      return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
-    } else {
+
+    if ( state !== 'wind' && state !== 'auto' ) {
+      return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+    } else {    
       sendN2k(tackTo(app, deviceid, {value: value}))
       return SUCCESS_RES
     }
@@ -219,7 +396,7 @@ module.exports = function(app) {
 
     pilot.id = defaultId
     app.debug('*** post-discovery -> defaultId', defaultId)
-      
+
     return {
       deviceid: {
         type: "string",
@@ -343,3 +520,47 @@ function degsToRad(degrees) {
   return degrees * (Math.PI/180.0);
 }
 
+function getPilotError(app) {
+  let message
+  const notifs = app.getSelfPath('notifications.autopilot')
+  if (notifs) {
+    Object.entries(notifs).map(([name, info]) => {
+      if (info.state !== 'normal') {
+        message = info.message
+      }
+    })
+  }
+  return message
+}
+
+function verifyChange(app, path, expected, cb)
+{
+  let retryCount = 0
+  const interval = setInterval(() => {
+    let val = app.getSelfPath(path)
+    //app.debug('checking %s %j should be %j', path, val, expected)
+
+    if (val !== undefined && val === expected) {
+      app.debug('SUCCESS')
+      cb(SUCCESS_RES)
+      clearInterval(interval)
+    } else {
+      let message
+      const notifs = app.getSelfPath('notifications.autopilot')
+      if (notifs) {
+        Object.entries(notifs).map(([name, info]) => {
+          if (info.value.state !== 'normal') {
+            message = info.value.message
+          }
+        })
+      }
+
+      if (message || retryCount++ > 5) {
+        clearInterval(interval)
+
+        const res = {message: message || `Did not receive change confirmation ${val} != ${expected}`, ...FAILURE_RES}
+        cb(res)
+      }
+    }
+  }, 1000)
+}

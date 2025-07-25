@@ -19,8 +19,8 @@ const _ = require('lodash')
 
 const state_path = "steering.autopilot.state.value"
 
-const SUCCESS_RES = { state: 'SUCCESS' }
-const FAILURE_RES = { state: 'FAILURE' }
+const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 }
+const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 }
 
 const state_commands = {
   "auto":    "%s,3,126720,%s,%s,16,3b,9f,f0,81,86,21,01,fe,00,00,00,00,00,00,ff,ff,ff,ff,ff",
@@ -73,6 +73,17 @@ module.exports = function(app) {
     msgs.map(function(msg) { app.emit('nmea2000out', msg)})
   }
 
+  pilot.putTargetHeadingPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTargetHeading(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
+  }
+
   pilot.putTargetHeading = (context, path, value, cb) => {
     var state = app.getSelfPath(state_path)
 
@@ -89,6 +100,17 @@ module.exports = function(app) {
     }
   }
 
+  pilot.putStatePromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putState(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
+  }
+
   pilot.putState = (context, path, value, cb) => {
     if ( !state_commands[value] ) {
       return { message: `Invalid state: ${value}`, ...FAILURE_RES }
@@ -97,6 +119,17 @@ module.exports = function(app) {
       sendN2k([msg])
       return SUCCESS_RES
     }
+  }
+
+  pilot.putTargetWindPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTargetWind(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putTargetWind = (context, path, value, cb)  => {
@@ -112,6 +145,17 @@ module.exports = function(app) {
       sendN2k([msg])
       return SUCCESS_RES
     }
+  }
+
+  pilot.putAdjustHeadingPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putAdjustHeading(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putAdjustHeading = (context, path, value, cb)  => {
@@ -140,6 +184,17 @@ module.exports = function(app) {
       sendN2k(changeHeadingByKey(app, deviceid, {value: aString}))
       return SUCCESS_RES
     }
+  }
+
+  pilot.putTackPromise = (value) => {
+    return new Promise((resolve, reject) => {
+      const res = pilot.putTack(undefined, undefined, value)
+      if (res.statusCode === FAILURE_RES.statusCode) {
+        reject(new Error(res.message))
+      } else {
+        resolve()
+      }
+    })
   }
 
   pilot.putTack = (context, path, value, cb)  => {

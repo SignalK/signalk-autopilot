@@ -40,3 +40,4 @@ jspm_packages
 public/index.html
 public/signalk-autopilot.min.js
 public/signalk-autopilot.min.js.map
+*.tgz
