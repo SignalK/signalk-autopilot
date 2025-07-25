@@ -38,7 +38,7 @@ const keys_code = {
 const wind_direction_command = '10,01,%s,%s'
 //const heading_command = '89,%s,%s,%s,%s'
 //const wp_change = '82,05,%s,%s,%s,%s,%s,%s'
-const targetHeading = '89,%s,%s,$s,%s'
+const targetHeading = '89,%s,%s,%s,%s'
 /*
 const keep_alive = '90,00,A3' //identify as NMEA-ST bridge
 const raymarine_ttw_Mode = '85,06,00,VU,4W,06,10,00,FF' //1NM, vw mag heading
@@ -50,7 +50,7 @@ module.exports = function (app) {
   var pilot = {}
 
   pilot.start = (props) => {
-    outputEvent = props.outputEvent
+    outputEvent = props.outputEvent || 'seatalkOut'
   }
 
   pilot.stop = () => {}
@@ -83,13 +83,13 @@ module.exports = function (app) {
     } else {
       var new_value = Math.trunc(radsToDeg(value))
       var quadrant = parseInt(new_value / 90)
-      let rest = parseInt(new_value - quadrant * 90)
-      let VW = parseInt(rest / 2)
+      var rest = parseInt(new_value - quadrant * 90)
+      var VW = parseInt(rest / 2)
       rest = rest - VW * 2
       var U = 0x02
       U |= quadrant << (4 + 2)
       U |= new_value % 2 << 7
-      VW = 0x3f & ((new_value - quadrant * 90) / 2)
+      var VW = 0x3f & ((new_value - quadrant * 90) / 2)
       var XY = 0x00
       var Z = 0x20
 

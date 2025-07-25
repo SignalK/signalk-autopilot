@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+import { ActionResult } from '@signalk/server-api'
 import raymarinen2k from './raymarinen2k'
+import raystngconv from './raystngconv'
+import raymarinest from './raymarinest'
 
 const target_heading = 'steering.autopilot.target.headingMagnetic'
 const target_wind = 'steering.autopilot.target.windAngleApparent'
@@ -23,10 +26,10 @@ const adjust_heading = 'steering.autopilot.actions.adjustHeading'
 const tack = 'steering.autopilot.actions.tack'
 const advance = 'steering.autopilot.actions.advanceWaypoint'
 
-const types: { [key: string]: (app: any) => Autopilot } = {
-  //raymarineST: require('./raymarinest'),
-  //raySTNGConv: require('./raystngconv'),
-  raymarineN2K: raymarinen2k
+export const types: { [key: string]: (app: any) => Autopilot } = {
+  raymarineN2K: raymarinen2k,
+  raymarineST: raymarinest as (app: any) => Autopilot,
+  raySTNGConv: raystngconv as (app: any) => Autopilot
 }
 
 export interface Autopilot {
@@ -37,13 +40,13 @@ export interface Autopilot {
     path: string | undefined,
     value: any,
     cb?: any
-  ): void
+  ): ActionResult
   putTargetHeading(
     context: string | undefined,
     path: string | undefined,
     value: any,
     cb?: any
-  ): any
+  ): ActionResult
   putTargetWind(
     context: string | undefined,
     path: string | undefined,
@@ -55,25 +58,25 @@ export interface Autopilot {
     path: string | undefined,
     value: any,
     cb?: any
-  ): any
+  ): ActionResult
   putTack(
     context: string | undefined,
     path: string | undefined,
     value: any,
     cb?: any
-  ): any
+  ): ActionResult
   putAdvanceWaypoint(
     context: string | undefined,
     path: string | undefined,
     value: any,
     cb?: any
-  ): any
-  putHullType(
+  ): ActionResult
+  putHullType?(
     context: string | undefined,
     path: string | undefined,
     value: any,
     cb?: any
-  ): any
+  ): ActionResult
   properties(): any
   putStatePromise(value: string): Promise<void>
   putTargetHeadingPromise(value: number): Promise<void>

@@ -27,15 +27,16 @@ import {
   Priority,
   SeatalkKeystroke
 } from '@canboat/ts-pgns'
+import { ActionResult } from '@signalk/server-api'
 
 const state_path = 'steering.autopilot.state.value'
 const hull_type_path = 'steering.autopilot.hullType'
 const target_heading_path = 'steering.autopilot.target.headingMagnetic.value'
 const target_wind_path = 'steering.autopilot.target.windAngleApparent.value'
 
-const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 }
-const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 }
-const PENDING_RES = { state: 'PENDING', statusCode: 202 }
+const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 } as ActionResult
+const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 } as ActionResult
+const PENDING_RES = { state: 'PENDING', statusCode: 202 } as ActionResult
 
 /*
 const state_commands = {
@@ -124,14 +125,16 @@ const default_src = '1'
 const autopilot_dst = '204'
 
 export default function (app: any): Autopilot {
-  let deviceid: number
+  let deviceid: number = 204
   const timers: any[] = []
   let discovered: number | undefined
 
   const pilot: Autopilot = {
     start: (props) => {
-      deviceid = Number(props.deviceid)
-      app.debug('props.deviceid:', deviceid)
+      if (props.deviceid !== undefined) {
+        deviceid = Number(props.deviceid)
+        app.debug('props.deviceid:', deviceid)
+      }
 
       app.registerPutHandler('vessels.self', hull_type_path, pilot.putHullType)
 
@@ -203,7 +206,7 @@ export default function (app: any): Autopilot {
       })
     },
 
-    putHullType: (context, path, value, _cb) => {
+    putHullType: (context, path, value, _cb): ActionResult => {
       const type = hullTypes[value]
       const state = app.getSelfPath(state_path)
 
@@ -264,7 +267,7 @@ export default function (app: any): Autopilot {
       if (state !== 'auto') {
         return { message: 'Autopilot not in auto mode', ...FAILURE_RES }
       } else {
-        const new_value = Math.trunc(degsToRad(value))
+        const new_value = degsToRad(value)
         const pgn = createNmeaGroupFunction(
           GroupFunction.Command,
           new PGN_65360_SeatalkPilotLockedHeading({
@@ -448,7 +451,7 @@ export default function (app: any): Autopilot {
     },
 
     properties: () => {
-      let defaultId = deviceid ?? '205'
+      let defaultId = deviceid ?? '204'
       let description = 'No EV-1 Found'
 
       app.debug('***pre-discovery -> defaultId', defaultId)

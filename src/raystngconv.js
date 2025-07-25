@@ -63,11 +63,11 @@ const everyone_dst = '255'
 
 module.exports = function (app) {
   var deviceid
-  var pilot = { id: null }
+  var pilot = {}
   var discovered
 
   pilot.start = (props) => {
-    deviceid = props.converterDeviceId
+    deviceid = props.converterDeviceId || autopilot_dst
     pilot.id = deviceid
     app.debug('props.converterDeviceId:', deviceid)
   }
@@ -103,7 +103,7 @@ module.exports = function (app) {
         heading_command,
         new Date().toISOString(),
         default_src,
-        autopilot_dst,
+        deviceid,
         padd((new_value & 0xff).toString(16), 2),
         padd(((new_value >> 8) & 0xff).toString(16), 2)
       )
