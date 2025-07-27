@@ -83,6 +83,7 @@ const raymarine_ttw = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,
 */
 const hull_type_command =
   '%s,3,126208,%s,%s,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,%s,52,ff'
+const request_hull_type_command = '%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,16,50'
 
 const hullTypes: {
   [key: string]: { title: string; abbrev?: string; code: string }
@@ -150,16 +151,12 @@ export default function (app: any): Autopilot {
         })
       })
 
+      app.on('nmea2000OutAvailable', () => {
+        requestAPInfo()
+      });
+
       app.handleMessage('autopilot', {
         updates: [
-          {
-            values: [
-              {
-                path: hull_type_path,
-                value: 'unknown'
-              }
-            ]
-          },
           {
             meta: [
               {
@@ -220,11 +217,12 @@ export default function (app: any): Autopilot {
           hull_type_command,
           new Date().toISOString(),
           default_src,
-          autopilot_dst,
+          deviceid,
           type.code
         )
-
+        //FIXME, verify
         sendN2k([msg])
+        /*
         app.handleMessage('autopilot', {
           updates: [
             {
@@ -237,7 +235,7 @@ export default function (app: any): Autopilot {
             }
           ]
         })
-
+        */
         return SUCCESS_RES
       }
     },
@@ -504,6 +502,17 @@ export default function (app: any): Autopilot {
         }
       }
     }
+  }
+
+  function requestAPInfo() {
+    app.debug('requesting autopilot info')
+    const msg = util.format(
+      request_hull_type_command,
+      new Date().toISOString(),
+      default_src,
+      deviceid
+    )
+    sendN2k([msg])
   }
 
   function sendN2k(msgs: any[]) {
