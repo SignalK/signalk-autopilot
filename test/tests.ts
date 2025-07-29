@@ -292,8 +292,8 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Raymarine',
                 industryCode: 'Marine Industry',
-                command: '0x86',
-                proprietaryId: '0x81f0',
+                command: 'Keystroke',
+                proprietaryId: 'Seatalk',
                 device: 33,
                 key: '+1',
                 keyinverted: 248
@@ -355,8 +355,8 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Raymarine',
                 industryCode: 'Marine Industry',
-                command: '0x86',
-                proprietaryId: '0x81f0',
+                command: 'Keystroke',
+                proprietaryId: 'Seatalk',
                 device: 33,
                 key: '-1 and -10',
                 keyinverted: 222
@@ -495,9 +495,44 @@ Object.entries(types).forEach(([name, type]) => {
       const expected: { [key: string]: ExpectedEvent[] } = {
         raymarineN2K: [
           {
-            event: 'nmea2000out',
-            value:
-              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,08,52,ff/
+            event: 'nmea2000JsonOut',
+            value: {
+              prio: 3,
+              pgn: 126208,
+              dst: 204,
+              input: undefined,
+              src: undefined,
+              timestamp: undefined,
+              description: undefined,
+              fields: {
+                functionCode: 'Command',
+                pgn: 126720,
+                priority: 'Leave unchanged',
+                numberOfParameters: 5,
+                list: [
+                  {
+                    parameter: 1,
+                    value: 'Raymarine'
+                  },
+                  {
+                    parameter: 3,
+                    value: 'Marine Industry'
+                  },
+                  {
+                    parameter: 4,
+                    value: 'Pilot Configuration'
+                  },
+                  {
+                    parameter: 5,
+                    value: 'Hull Type'
+                  },
+                  {
+                    parameter: 6,
+                    value: 'Power'
+                  }
+                ]
+              },
+            },
           }
         ]
       }
