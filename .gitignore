@@ -41,3 +41,6 @@ public/index.html
 public/signalk-autopilot.min.js
 public/signalk-autopilot.min.js.map
 *.tgz
+dist/
+tsconfig.tsbuildinfo
+.vscode/
