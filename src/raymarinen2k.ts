@@ -17,11 +17,14 @@
 import util from 'util'
 import { Autopilot } from './index'
 import {
+  PGN,
   createNmeaGroupFunction,
   SeatalkPilotMode16,
   PGN_65379_SeatalkPilotMode,
   PGN_126720_Seatalk1Keystroke,
   PGN_65360_SeatalkPilotLockedHeading,
+  PGN_126720_Seatalk1PilotHullType,
+  SeatalkPilotHullType,
   GroupFunction,
   Priority,
   SeatalkKeystroke
@@ -80,41 +83,41 @@ const heading_command = "%s,3,126208,%s,%s,14,01,50,ff,00,f8,03,01,3b,07,03,04,0
 const wind_direction_command = "%s,3,126208,%s,%s,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,%s,%s"
 const raymarine_ttw_Mode = "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
 const raymarine_ttw = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
-*/
 const hull_type_command =
   '%s,3,126208,%s,%s,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,%s,52,ff'
 const request_hull_type_command = '%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,16,50'
+*/
 
 const hullTypes: {
-  [key: string]: { title: string; abbrev?: string; code: string }
+  [key: string]: { title: string; abbrev?: string; code: SeatalkPilotHullType }
 } = {
   sailSlowTurn: {
     title: 'Sail (slow turn)',
     abbrev: 'Sail Slow',
-    code: '01'
+    code: SeatalkPilotHullType.SailslowTurn
   },
   sail: {
     title: 'Sail',
-    code: '00'
+    code: SeatalkPilotHullType.Sail
   },
   sailCatamaran: {
     title: 'Sail Catamaran',
     abbrev: 'Sail Cat',
-    code: '02'
+    code: SeatalkPilotHullType.SailCatamaran
   },
   power: {
     title: 'Power',
-    code: '08'
+    code: SeatalkPilotHullType.Power
   },
   powerSlowTurn: {
     title: 'Power (slow turn)',
     abbrev: 'Power Slow',
-    code: '03'
+    code: SeatalkPilotHullType.PowerslowTurn
   },
   powerFastTurn: {
     title: 'Power (fast turn)',
     abbrev: 'Power Fast',
-    code: '05'
+    code: SeatalkPilotHullType.PowerfastTurn
   }
 }
 
@@ -122,7 +125,6 @@ const keep_alive = '%s,7,65384,%s,255,8,3b,9f,00,00,00,00,00,00'
 const keep_alive2 = '%s,7,126720,%s,255,7,3b,9f,f0,81,90,00,03'
 
 const default_src = '1'
-const autopilot_dst = '204'
 
 export default function (app: any): Autopilot {
   let deviceid: number = 204
@@ -151,9 +153,11 @@ export default function (app: any): Autopilot {
         })
       })
 
-      app.on('nmea2000OutAvailable', () => {
-        requestAPInfo()
-      });
+      if (app.on) {
+        app.on('nmea2000OutAvailable', () => {
+          requestAPInfo()
+        })
+      }
 
       app.handleMessage('autopilot', {
         updates: [
@@ -213,29 +217,16 @@ export default function (app: any): Autopilot {
       } else if (state !== 'standby') {
         return { message: 'Autopilot not in standby', ...FAILURE_RES }
       } else {
-        const msg = util.format(
-          hull_type_command,
-          new Date().toISOString(),
-          default_src,
-          deviceid,
-          type.code
+        const pgn = createNmeaGroupFunction(
+          GroupFunction.Command,
+          new PGN_126720_Seatalk1PilotHullType({
+            hullType: type.code
+          }),
+          { priority: Priority.LeaveUnchanged },
+          deviceid
         )
-        //FIXME, verify
-        sendN2k([msg])
-        /*
-        app.handleMessage('autopilot', {
-          updates: [
-            {
-              values: [
-                {
-                  path: hull_type_path,
-                  value
-                }
-              ]
-            }
-          ]
-        })
-        */
+        sendN2k([pgn])
+
         return SUCCESS_RES
       }
     },
@@ -506,13 +497,18 @@ export default function (app: any): Autopilot {
 
   function requestAPInfo() {
     app.debug('requesting autopilot info')
-    const msg = util.format(
-      request_hull_type_command,
-      new Date().toISOString(),
-      default_src,
-      deviceid
+    const pgns: PGN[] = []
+
+    pgns.push(
+      createNmeaGroupFunction(
+        GroupFunction.Request,
+        new PGN_126720_Seatalk1PilotHullType({}),
+        {},
+        deviceid
+      )
     )
-    sendN2k([msg])
+
+    sendN2k(pgns)
   }
 
   function sendN2k(msgs: any[]) {
@@ -646,3 +642,11 @@ function verifyChange(
     }
   }, 1000)
 }
+
+/*
+function padd(n: string, p: number, c?: string) {
+  const pad_char = typeof c !== 'undefined' ? c : '0'
+  const pad = new Array(1 + p).join(pad_char)
+  return (pad + n).slice(-pad.length)
+}
+  */
