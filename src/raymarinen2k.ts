@@ -90,6 +90,7 @@ const request_hull_type_command =
   '%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,16,50'
 const auto_turn_command =
   '%s,3,126208,%s,%s,18,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,26,50,06,%s'
+const request_auto_turn_command = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,26,50"
 
 const hullTypes: {
   [key: string]: { title: string; abbrev?: string; code: SeatalkPilotHullType }
@@ -551,14 +552,21 @@ export default function (app: any): Autopilot {
     sendN2k(pgns)
     */
 
-    const msg = util.format(
+    const msgs : string[] = []
+    msgs.push(util.format(
       request_hull_type_command,
       new Date().toISOString(),
       default_src,
       deviceid
-    )
+    ))
+    msgs.push(util.format(
+      request_auto_turn_command,
+      new Date().toISOString(),
+      default_src,
+      deviceid
+    ))
 
-    sendN2k([msg])
+    sendN2k(msgs)
   }
 
   function sendN2k(msgs: any[]) {
