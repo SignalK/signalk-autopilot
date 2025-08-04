@@ -292,8 +292,9 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Raymarine',
                 industryCode: 'Marine Industry',
-                command: 'Keystroke',
-                proprietaryId: 'Seatalk',
+                command: 'Seatalk1',
+                proprietaryId: 'Seatalk 1 Encoded',
+                seatalk1Command: 'Keystroke',
                 device: 33,
                 key: '+1',
                 keyinverted: 248
@@ -355,8 +356,9 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Raymarine',
                 industryCode: 'Marine Industry',
-                command: 'Keystroke',
-                proprietaryId: 'Seatalk',
+                command: 'Seatalk1',
+                proprietaryId: 'Seatalk 1 Encoded',
+                seatalk1Command: 'Keystroke',
                 device: 33,
                 key: '-1 and -10',
                 keyinverted: 222
@@ -495,44 +497,9 @@ Object.entries(types).forEach(([name, type]) => {
       const expected: { [key: string]: ExpectedEvent[] } = {
         raymarineN2K: [
           {
-            event: 'nmea2000JsonOut',
-            value: {
-              prio: 3,
-              pgn: 126208,
-              dst: 204,
-              input: undefined,
-              src: undefined,
-              timestamp: undefined,
-              description: undefined,
-              fields: {
-                functionCode: 'Command',
-                pgn: 126720,
-                priority: 'Leave unchanged',
-                numberOfParameters: 5,
-                list: [
-                  {
-                    parameter: 1,
-                    value: 'Raymarine'
-                  },
-                  {
-                    parameter: 3,
-                    value: 'Marine Industry'
-                  },
-                  {
-                    parameter: 4,
-                    value: 'Pilot Configuration'
-                  },
-                  {
-                    parameter: 5,
-                    value: 'Hull Type'
-                  },
-                  {
-                    parameter: 6,
-                    value: 'Power'
-                  }
-                ]
-              },
-            },
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,08,52,ff/
           }
         ]
       }
@@ -553,6 +520,52 @@ Object.entries(types).forEach(([name, type]) => {
         undefined,
         undefined,
         'power',
+        (res: any) => {
+          expect(res.state).to.equal('COMPLETED')
+          expect(res.statusCode).to.equal(200)
+          done()
+        }
+      )
+      expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
+      if (res.state === 'COMPLETED') {
+        expect(res.statusCode).to.equal(200)
+        done()
+      }
+    })
+
+    it(`putAutoTurn works`, (done) => {
+      if (name !== 'raymarineN2K') {
+        // putAutoTurn is only implemented in raymarineN2K
+        done()
+        return
+      }
+
+      const expected: { [key: string]: ExpectedEvent[] } = {
+        raymarineN2K: [
+          {
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,18,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,26,50,06,01$/
+          }
+        ]
+      }
+
+      const app = new TestApp(expected[name], {
+        'steering.autopilot.state.value': 'standby'
+      })
+
+      const autopilot: Autopilot = type(app)
+      autopilot.start({})
+
+      if (!autopilot.putAutoTurn) {
+        done()
+        return
+      }
+
+      const res = autopilot.putAutoTurn(
+        undefined,
+        undefined,
+        true,
         (res: any) => {
           expect(res.state).to.equal('COMPLETED')
           expect(res.statusCode).to.equal(200)

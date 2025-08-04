@@ -17,14 +17,13 @@
 import util from 'util'
 import { Autopilot } from './index'
 import {
-  PGN,
   createNmeaGroupFunction,
   SeatalkPilotMode16,
   PGN_65379_SeatalkPilotMode,
   PGN_126720_Seatalk1Keystroke,
   PGN_65360_SeatalkPilotLockedHeading,
-  PGN_126720_Seatalk1PilotHullType,
   SeatalkPilotHullType,
+  SeatalkPilotHullTypeValues,
   GroupFunction,
   Priority,
   SeatalkKeystroke
@@ -35,6 +34,7 @@ const state_path = 'steering.autopilot.state.value'
 const hull_type_path = 'steering.autopilot.hullType'
 const target_heading_path = 'steering.autopilot.target.headingMagnetic.value'
 const target_wind_path = 'steering.autopilot.target.windAngleApparent.value'
+const auto_turn_path = 'steering.autopilot.autoTurn.state'
 
 const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 } as ActionResult
 const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 } as ActionResult
@@ -83,10 +83,13 @@ const heading_command = "%s,3,126208,%s,%s,14,01,50,ff,00,f8,03,01,3b,07,03,04,0
 const wind_direction_command = "%s,3,126208,%s,%s,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,%s,%s"
 const raymarine_ttw_Mode = "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
 const raymarine_ttw = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
+*/
 const hull_type_command =
   '%s,3,126208,%s,%s,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,%s,52,ff'
-const request_hull_type_command = '%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,16,50'
-*/
+const request_hull_type_command =
+  '%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,16,50'
+const auto_turn_command =
+  '%s,3,126208,%s,%s,18,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,26,50,06,%s'
 
 const hullTypes: {
   [key: string]: { title: string; abbrev?: string; code: SeatalkPilotHullType }
@@ -141,6 +144,7 @@ export default function (app: any): Autopilot {
       }
 
       app.registerPutHandler('vessels.self', hull_type_path, pilot.putHullType)
+      app.registerPutHandler('vessels.self', auto_turn_path, pilot.putAutoTurn)
 
       const possibleValues: any = []
 
@@ -217,6 +221,7 @@ export default function (app: any): Autopilot {
       } else if (state !== 'standby') {
         return { message: 'Autopilot not in standby', ...FAILURE_RES }
       } else {
+        /*
         const pgn = createNmeaGroupFunction(
           GroupFunction.Command,
           new PGN_126720_Seatalk1PilotHullType({
@@ -226,6 +231,39 @@ export default function (app: any): Autopilot {
           deviceid
         )
         sendN2k([pgn])
+        */
+
+        const msg = util.format(
+          hull_type_command,
+          new Date().toISOString(),
+          default_src,
+          deviceid,
+          padd(SeatalkPilotHullTypeValues[type.code].toString(16), 2)
+        )
+
+        sendN2k([msg])
+
+        return SUCCESS_RES
+      }
+    },
+
+    putAutoTurn: (context, path, value, _cb): ActionResult => {
+      const state = app.getSelfPath(state_path)
+
+      if (value === undefined) {
+        return { message: 'Invalid auto turn value', ...FAILURE_RES }
+      } else if (state !== 'standby') {
+        return { message: 'Autopilot not in standby', ...FAILURE_RES }
+      } else {
+        const msg = util.format(
+          auto_turn_command,
+          new Date().toISOString(),
+          default_src,
+          deviceid,
+          value == true ? '01' : '00'
+        )
+
+        sendN2k([msg])
 
         return SUCCESS_RES
       }
@@ -497,8 +535,10 @@ export default function (app: any): Autopilot {
 
   function requestAPInfo() {
     app.debug('requesting autopilot info')
+    /*
     const pgns: PGN[] = []
 
+  
     pgns.push(
       createNmeaGroupFunction(
         GroupFunction.Request,
@@ -509,6 +549,16 @@ export default function (app: any): Autopilot {
     )
 
     sendN2k(pgns)
+    */
+
+    const msg = util.format(
+      request_hull_type_command,
+      new Date().toISOString(),
+      default_src,
+      deviceid
+    )
+
+    sendN2k([msg])
   }
 
   function sendN2k(msgs: any[]) {
@@ -643,10 +693,8 @@ function verifyChange(
   }, 1000)
 }
 
-/*
-function padd(n: string, p: number, c?: string) {
+function padd(n: string, p: number, c?: string): string {
   const pad_char = typeof c !== 'undefined' ? c : '0'
   const pad = new Array(1 + p).join(pad_char)
   return (pad + n).slice(-pad.length)
 }
-  */

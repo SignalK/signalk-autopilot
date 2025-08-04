@@ -110,6 +110,12 @@ export interface Autopilot {
     value: any,
     cb?: any
   ): ActionResult
+  putAutoTurn?(
+    context: string | undefined,
+    path: string | undefined,
+    value: any,
+    cb?: any
+  ): ActionResult
   properties(): any
   putStatePromise(value: string): Promise<void>
   putTargetHeadingPromise(value: number): Promise<void>
