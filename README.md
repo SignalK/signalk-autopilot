@@ -7,7 +7,10 @@
 To be able to acknowledge pilot related alarms through the GUI you need to install the `signalk-alarm-silencer` plugin.  
 - A back-end API described below.
 
-This currently only supports Raymarine NMEA 2000 and Raymarine Seatalk 1 Autopilots, but I'll be adding support for other autopilots as needed.
+Supports 
+- Raymarine NMEA 2000
+- Seatalk 1 Autopilots
+- Simrad Autopilots (currently only tested with a NAC-3), not support yet to set target heading or wind angle, only increment and decriment them
 
 For Seatalk 1 Autopilots to work, a device that can translate Seatalk datagrams back and forth within an NMEA0183 sentence is required. They may be purchased from [Digital Yacht](https://digitalyachtamerica.com/product/st-nmea-usb/), [Shipmodul (Miniplex 3)](http://www.shipmodul.com/en/index.html) or [gadgetpool](http://www.gadgetpool.eu/product_info.php?products_id=54). For an example guide, see [TinyNMEA-USB.md](TinyNMEA-USB.md)
 
