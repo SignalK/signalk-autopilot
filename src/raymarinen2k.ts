@@ -90,7 +90,8 @@ const request_hull_type_command =
   '%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,16,50'
 const auto_turn_command =
   '%s,3,126208,%s,%s,18,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,26,50,06,%s'
-const request_auto_turn_command = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,26,50"
+const request_auto_turn_command =
+  '%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,26,50'
 
 const hullTypes: {
   [key: string]: { title: string; abbrev?: string; code: SeatalkPilotHullType }
@@ -483,7 +484,7 @@ export default function (app: any): Autopilot {
       let defaultId = deviceid ?? '204'
       let description = 'No EV-1 Found'
 
-      app.debug('***pre-discovery -> defaultId', defaultId)
+      //app.debug('***pre-discovery -> defaultId', defaultId)
 
       if (!discovered) {
         //let full = app.deltaCache.buildFull(undefined, [ 'sources' ])
@@ -515,7 +516,7 @@ export default function (app: any): Autopilot {
         app.debug(description)
       }
 
-      app.debug('*** post-discovery -> defaultId', defaultId)
+      //app.debug('*** post-discovery -> defaultId', defaultId)
 
       return {
         deviceid: {
@@ -552,19 +553,23 @@ export default function (app: any): Autopilot {
     sendN2k(pgns)
     */
 
-    const msgs : string[] = []
-    msgs.push(util.format(
-      request_hull_type_command,
-      new Date().toISOString(),
-      default_src,
-      deviceid
-    ))
-    msgs.push(util.format(
-      request_auto_turn_command,
-      new Date().toISOString(),
-      default_src,
-      deviceid
-    ))
+    const msgs: string[] = []
+    msgs.push(
+      util.format(
+        request_hull_type_command,
+        new Date().toISOString(),
+        default_src,
+        deviceid
+      )
+    )
+    msgs.push(
+      util.format(
+        request_auto_turn_command,
+        new Date().toISOString(),
+        default_src,
+        deviceid
+      )
+    )
 
     sendN2k(msgs)
   }

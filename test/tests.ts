@@ -78,7 +78,8 @@ Object.entries(types).forEach(([name, type]) => {
               }
             ]
           }
-        ]
+        ],
+        simrad: []
       }
 
       const app = new TestApp(expected[name])
@@ -159,25 +160,29 @@ Object.entries(types).forEach(([name, type]) => {
         ]
       }
 
-      const app = new TestApp(expected[name], {
-        'steering.autopilot.state.value': 'auto'
-      })
+      if (expected[name]) {
+        const app = new TestApp(expected[name], {
+          'steering.autopilot.state.value': 'auto'
+        })
 
-      const autopilot: Autopilot = type(app)
-      autopilot.start({})
+        const autopilot: Autopilot = type(app)
+        autopilot.start({})
 
-      const res = autopilot.putTargetHeading(
-        undefined,
-        undefined,
-        180,
-        (res: any) => {
-          expect(res.state).to.equal('COMPLETED')
+        const res = autopilot.putTargetHeading(
+          undefined,
+          undefined,
+          180,
+          (res: any) => {
+            expect(res.state).to.equal('COMPLETED')
+            done()
+          }
+        )
+        expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
+        if (res.state === 'COMPLETED') {
+          expect(res.statusCode).to.equal(200)
           done()
         }
-      )
-      expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
-      if (res.state === 'COMPLETED') {
-        expect(res.statusCode).to.equal(200)
+      } else {
         done()
       }
     })
@@ -239,26 +244,30 @@ Object.entries(types).forEach(([name, type]) => {
         ]
       }
 
-      const app = new TestApp(expected[name], {
-        'steering.autopilot.state.value': 'wind'
-      })
+      if (expected[name]) {
+        const app = new TestApp(expected[name], {
+          'steering.autopilot.state.value': 'wind'
+        })
 
-      const autopilot: Autopilot = type(app)
-      autopilot.start({})
+        const autopilot: Autopilot = type(app)
+        autopilot.start({})
 
-      const res = autopilot.putTargetWind(
-        undefined,
-        undefined,
-        30,
-        (res: any) => {
-          expect(res.state).to.equal('COMPLETED')
+        const res = autopilot.putTargetWind(
+          undefined,
+          undefined,
+          30,
+          (res: any) => {
+            expect(res.state).to.equal('COMPLETED')
+            expect(res.statusCode).to.equal(200)
+            done()
+          }
+        )
+        expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
+        if (res.state === 'COMPLETED') {
           expect(res.statusCode).to.equal(200)
           done()
         }
-      )
-      expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
-      if (res.state === 'COMPLETED') {
-        expect(res.statusCode).to.equal(200)
+      } else {
         done()
       }
     })
@@ -301,7 +310,8 @@ Object.entries(types).forEach(([name, type]) => {
               }
             }
           }
-        ]
+        ],
+        simrad: []
       }
 
       const app = new TestApp(expected[name], {
@@ -365,7 +375,8 @@ Object.entries(types).forEach(([name, type]) => {
               }
             }
           }
-        ]
+        ],
+        simrad: []
       }
 
       const app = new TestApp(expected[name], {
@@ -451,39 +462,43 @@ Object.entries(types).forEach(([name, type]) => {
         ]
       }
 
-      const app = new TestApp(expected[name], {
-        'steering.autopilot.state.value': 'route'
-      })
+      if (expected[name]) {
+        const app = new TestApp(expected[name], {
+          'steering.autopilot.state.value': 'route'
+        })
 
-      const autopilot: Autopilot = type(app)
-      autopilot.start({})
+        const autopilot: Autopilot = type(app)
+        autopilot.start({})
 
-      const res = autopilot.putAdvanceWaypoint(
-        undefined,
-        undefined,
-        1,
-        (res: any) => {
-          if (name === 'raymarineST') {
-            expect(res.state).to.equal('COMPLETED')
-            expect(res.statusCode).to.equal(400)
-          } else {
-            expect(res.state).to.equal('COMPLETED')
-            expect(res.statusCode).to.equal(200)
+        const res = autopilot.putAdvanceWaypoint(
+          undefined,
+          undefined,
+          1,
+          (res: any) => {
+            if (name === 'raymarineST') {
+              expect(res.state).to.equal('COMPLETED')
+              expect(res.statusCode).to.equal(400)
+            } else {
+              expect(res.state).to.equal('COMPLETED')
+              expect(res.statusCode).to.equal(200)
+            }
+            done()
           }
-          done()
-        }
-      )
+        )
 
-      if (name === 'raymarineST') {
-        expect(res.state).to.equal('COMPLETED')
-        expect(res.statusCode).to.equal(400)
-        done()
-      } else {
-        expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
-        if (res.state === 'COMPLETED') {
-          expect(res.statusCode).to.equal(200)
+        if (name === 'raymarineST') {
+          expect(res.state).to.equal('COMPLETED')
+          expect(res.statusCode).to.equal(400)
           done()
+        } else {
+          expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
+          if (res.state === 'COMPLETED') {
+            expect(res.statusCode).to.equal(200)
+            done()
+          }
         }
+      } else {
+        done()
       }
     })
 

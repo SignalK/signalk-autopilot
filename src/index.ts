@@ -18,6 +18,7 @@ import { ActionResult, AutopilotProvider } from '@signalk/server-api'
 import raymarinen2k from './raymarinen2k'
 import raystngconv from './raystngconv'
 import raymarinest from './raymarinest'
+import simrad from './simrad'
 
 const target_heading = 'steering.autopilot.target.headingMagnetic'
 const target_wind = 'steering.autopilot.target.windAngleApparent'
@@ -29,7 +30,8 @@ const advance = 'steering.autopilot.actions.advanceWaypoint'
 export const types: { [key: string]: (app: any) => Autopilot } = {
   raymarineN2K: raymarinen2k,
   raymarineST: raymarinest as (app: any) => Autopilot,
-  raySTNGConv: raystngconv as (app: any) => Autopilot
+  raySTNGConv: raystngconv as (app: any) => Autopilot,
+  simrad: simrad as (app: any) => Autopilot
 }
 
 type ApData = {
@@ -68,6 +70,8 @@ export interface Autopilot {
   id: number
   start(props: any): void
   stop(): void
+  states?(): { name: string; engaged: boolean }[]
+  modes?(): string[]
   putState(
     context: string | undefined,
     path: string | undefined,
@@ -149,6 +153,13 @@ export default function (app: any) {
     autopilot = pilots[props.type]
     autopilot.start(props)
 
+    if (autopilot.states) {
+      apData.options.states = autopilot.states()
+    }
+    if (autopilot.modes) {
+      apData.options.modes = autopilot.modes()
+    }
+
     app.registerPutHandler('vessels.self', state_path, autopilot.putState)
 
     app.registerPutHandler(
@@ -173,6 +184,10 @@ export default function (app: any) {
       autopilot.putAdvanceWaypoint
     )
 
+    const possibleValues = apData.options.states.map((s) => {
+      return { title: s.name, value: s.name }
+    })
+
     app.handleMessage(plugin.id, {
       updates: [
         {
@@ -182,24 +197,7 @@ export default function (app: any) {
               value: {
                 displayName: 'Autopilot State',
                 type: 'multiple',
-                possibleValues: [
-                  {
-                    title: 'Standby',
-                    value: 'standby'
-                  },
-                  {
-                    title: 'Auto',
-                    value: 'auto'
-                  },
-                  {
-                    title: 'Wind',
-                    value: 'wind'
-                  },
-                  {
-                    title: 'Route',
-                    value: 'route'
-                  }
-                ]
+                possibleValues
               }
             }
           ]
@@ -230,11 +228,12 @@ export default function (app: any) {
         type: {
           type: 'string',
           title: 'Autopilot Type',
-          enum: ['raymarineN2K', 'raySTNGConv', 'raymarineST'],
+          enum: ['raymarineN2K', 'raySTNGConv', 'raymarineST', 'simrad'],
           enumNames: [
             'Raymarine NMEA2000',
             'Raymarine SmartPilot -> SeaTalk-STNG-Converter',
-            'Raymarine Seatalk 1 AP'
+            'Raymarine Seatalk 1 AP',
+            'Simrad NMEA2000'
           ],
           default: 'raymarineN2K'
         }

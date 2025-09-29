@@ -25,7 +25,8 @@ const advance = "steering.autopilot.actions.advanceWaypoint"
 const types  = {
   raymarineST: require('./raymarinest'),
   raySTNGConv: require('./raystngconv'),
-  raymarineN2K: require('./raymarinen2k')
+  raymarineN2K: require('./raymarinen2k'),
+  raymarineN2K: require('./simrad')
 }
 
 const apData = {
@@ -71,10 +72,17 @@ module.exports = function(app) {
   })
 
   plugin.start = function(props) {
-    apType= props.type
+    apType = props.type
     autopilot = pilots[props.type]
     autopilot.start(props)
     app.debug('autopilot.id:', autopilot.id, 'autopilot.type:', apType)
+
+    if ( autopilot.states ) {
+      apData.options.states = autopilot.states()
+    }
+    if ( autopilot.modes ) {
+      apData.options.modes = autopilot.modes()
+    }
 
     app.registerPutHandler('vessels.self',
                            state_path,
@@ -160,12 +168,14 @@ module.exports = function(app) {
           enum: [
             'raymarineN2K',
             'raySTNGConv',
-            'raymarineST'
+            'raymarineST',
+            'simrad'
           ],
           enumNames: [
             'Raymarine NMEA2000',
             'Raymarine SmartPilot -> SeaTalk-STNG-Converter',
-            'Raymarine Seatalk 1 AP'
+            'Raymarine Seatalk 1 AP',
+            'Simrad NMEA2000'
           ],
           default: 'raymarineN2K'
         }

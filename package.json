@@ -24,7 +24,7 @@
   "author": "scott@scottbender.net",
   "license": "ISC",
   "dependencies": {
-    "@canboat/ts-pgns": "^1.10.5",
+    "@canboat/ts-pgns": "^1.11.0",
     "@signalk/server-api": "^2.7.1",
     "lodash": "^4.17.15"
   },
