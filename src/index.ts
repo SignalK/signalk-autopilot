@@ -242,7 +242,7 @@ export default function (app: any) {
 
     Object.values(pilots).forEach((ap) => {
       if (ap && ap.properties) {
-        config.properties = { ...ap.properties(), ...config.properties }
+        config.properties = { ...config.properties, ...ap.properties() }
       }
     })
     return config
