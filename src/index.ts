@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { ActionResult, AutopilotProvider, AutopilotInfo } from '@signalk/server-api'
+import {
+  ActionResult,
+  AutopilotProvider,
+  AutopilotInfo
+} from '@signalk/server-api'
 import raymarinen2k from './raymarinen2k'
 import raystngconv from './raystngconv'
 import raymarinest from './raymarinest'
@@ -299,10 +303,10 @@ export default function (app: any) {
         dodge: async (_direction, _deviceId) => {
           throw new Error('Not implemented!')
         },
-        courseCurrentPoint: async (deviceId: string): Promise<void> => {
+        courseCurrentPoint: async (_deviceId: string): Promise<void> => {
           throw new Error('Not implemented!')
         },
-        courseNextPoint: async (deviceId: string): Promise<void> => {
+        courseNextPoint: async (_deviceId: string): Promise<void> => {
           throw new Error('Not implemented!')
         }
       }
