@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { ActionResult, AutopilotProvider } from '@signalk/server-api'
+import {
+  ActionResult,
+  AutopilotProvider,
+  AutopilotInfo
+} from '@signalk/server-api'
 import raymarinen2k from './raymarinen2k'
 import raystngconv from './raystngconv'
 import raymarinest from './raymarinest'
@@ -34,18 +38,7 @@ export const types: { [key: string]: (app: any) => Autopilot } = {
   simrad: simrad as (app: any) => Autopilot
 }
 
-type ApData = {
-  options: {
-    states: { name: string; engaged: boolean }[]
-    modes: any[]
-  }
-  mode: string | null
-  state: string | null
-  engaged: boolean
-  target: number | null
-}
-
-const apData: ApData = {
+const apData: AutopilotInfo = {
   options: {
     states: [
       { name: 'standby', engaged: false },
@@ -53,7 +46,8 @@ const apData: ApData = {
       { name: 'wind', engaged: true },
       { name: 'route', engaged: true }
     ],
-    modes: []
+    modes: [],
+    actions: []
   },
   mode: null,
   state: null,
@@ -256,7 +250,7 @@ export default function (app: any) {
     app.debug('**** register AP Provider *****')
     try {
       const provider: AutopilotProvider = {
-        getData: async (_deviceId) => {
+        getData: async (_deviceId): Promise<AutopilotInfo> => {
           return apData
         },
         getState: async (_deviceId: string) => {
@@ -307,6 +301,12 @@ export default function (app: any) {
           throw new Error('Not implemented!')
         },
         dodge: async (_direction, _deviceId) => {
+          throw new Error('Not implemented!')
+        },
+        courseCurrentPoint: async (_deviceId: string): Promise<void> => {
+          throw new Error('Not implemented!')
+        },
+        courseNextPoint: async (_deviceId: string): Promise<void> => {
           throw new Error('Not implemented!')
         }
       }
