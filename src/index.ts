@@ -185,6 +185,7 @@ export default function (app: any) {
     app.handleMessage(plugin.id, {
       updates: [
         {
+          values: [{ path: state_path, value: 'standby' }],
           meta: [
             {
               path: state_path,
