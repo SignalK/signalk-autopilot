@@ -23,7 +23,7 @@ The current state of the autopilot can be found at the following paths:
 - steering.autopilot.target.headingMagnetic
 - steering.autopilot.target.windAngleApparent
 - steering.autopilot.state (standby, wind, route, or auto)
-- steering.autopilot.hullType (n2k only, unknown, sailSlowTurn, sail, sailCatamaran, power, powerSlowTurn, powerFastTurn)
+- steering.autopilot.hullType (Raymarine n2k only, unknown, sailSlowTurn, sail, sailCatamaran, power, powerSlowTurn, powerFastTurn)
 
 # API
 
@@ -117,7 +117,7 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/target/
 }
 ```
 
-## Hull Type (N2K Only)
+## Hull Type (Raymarine N2K Only)
 
 The `value` is the hull type.
 
