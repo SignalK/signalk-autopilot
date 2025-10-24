@@ -46,16 +46,16 @@ const keys_code: { [key: string]: string } = {
 const default_src = '1'
 
 export default function (app: any): Autopilot {
-  const deviceid: number = 3
+  const defaultDeviceid: number = 3
   const timers: any[] = []
 
   const pilot: Autopilot = {
-    id: deviceid,
+    id: defaultDeviceid,
     start: (props) => {
       if (props.deviceid !== undefined) {
         //deviceid = props.deviceid
-        //pilot.id = deviceid
-        app.debug('props.deviceid:', deviceid)
+        pilot.id = Number(props.deviceid)
+        app.debug('props.deviceid:', pilot.id)
       }
     },
 
@@ -133,7 +133,7 @@ export default function (app: any): Autopilot {
           state_command,
           new Date().toISOString(),
           default_src,
-          padd(deviceid.toString(16), 2),
+          padd(pilot.id.toString(16), 2),
           state_modes[value]
         )
         sendN2k([msg])
@@ -228,7 +228,7 @@ export default function (app: any): Autopilot {
             return { message: `Invalid adjustment: ${value}`, ...FAILURE_RES }
         }
 
-        sendN2k(changeHeading(app, deviceid, aString))
+        sendN2k(changeHeading(app, pilot.id, aString))
         //verifyChange(app, target_wind_path, new_value, cb)
         return SUCCESS_RES
       }
@@ -255,7 +255,7 @@ export default function (app: any): Autopilot {
           tack_command,
           new Date().toISOString(),
           default_src,
-          padd(deviceid.toString(16), 2)
+          padd(pilot.id.toString(16), 2)
         )
         sendN2k([msg])
         return SUCCESS_RES
