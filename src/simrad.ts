@@ -14,9 +14,22 @@
  * limitations under the License.
  */
 
-import util from 'util'
 import { Autopilot } from './index'
 import { ActionResult } from '@signalk/server-api'
+import {
+  PGN,
+  PGN_130850_SimnetCommandApHeading,
+  PGN_130850_SimnetCommandApNav,
+  PGN_130850_SimnetCommandApNodrift,
+  PGN_130850_SimnetCommandApStandby,
+  PGN_130850_SimnetCommandApTack,
+  PGN_130850_SimnetCommandApWind,
+  PGN_130850_SimnetCommandApChangeCourse,
+  SimnetDirection,
+  SimnetApCommandType
+  //PGN_130850_SimnetCommandApStandby,
+  //PGN_130850_SimnetCommandApFollowUp,
+} from '@canboat/ts-pgns'
 
 const state_path = 'steering.autopilot.state.value'
 
@@ -24,26 +37,23 @@ const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 } as ActionResult
 const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 } as ActionResult
 const PENDING_RES = { state: 'PENDING', statusCode: 202 } as ActionResult
 
+/*
 const state_command = '%s,3,130850,%s,255,11,41,9F,%s,FF,FF,0A,%s,00,FF,FF,FF'
 const heading_command = '%s,2,130850,%s,255,12,41,9f,%s,ff,ff,0A,1A,00,%s,ff'
 const tack_command = '%s,2,130850,%s,255,12,41,9f,%s,ff,ff,0A,11,00,00,ff,ff,ff'
+const start_follow_up_command =
+  '%s,2,130850,%s,255,12,41,9f,%s,ff,ff,02,0E,00,ff,ff,ff,ff'
+*/
 
-const state_modes: { [key: string]: string } = {
-  auto: '0c',
-  wind: '0f',
-  route: '0a',
-  standby: '06',
-  heading: '09'
-}
-
-const keys_code: { [key: string]: string } = {
-  '+1': '03,AE,00',
-  '+10': '03,D1,06',
-  '-1': '02,AE,00',
-  '-10': '02,D1,06'
-}
-
-const default_src = '1'
+const states = [
+  { name: 'standby', engaged: false },
+  { name: 'auto', engaged: true },
+  { name: 'wind', engaged: true },
+  { name: 'route', engaged: true },
+  { name: 'heading', engaged: true }
+  //{ name: 'followUp', engaged: true },
+  //{ name: 'nonFollowUp', engaged: true }
+]
 
 export default function (app: any): Autopilot {
   const defaultDeviceid: number = 3
@@ -66,14 +76,7 @@ export default function (app: any): Autopilot {
     },
 
     states: () => {
-      return [
-        { name: 'standby', engaged: false },
-        { name: 'auto', engaged: true },
-        { name: 'wind', engaged: true },
-        { name: 'route', engaged: true },
-        { name: 'heading', engaged: true },
-        { name: 'noDrift', engaged: true }
-      ]
+      return states
     },
 
     putTargetHeadingPromise: (value: number) => {
@@ -126,39 +129,68 @@ export default function (app: any): Autopilot {
     },
 
     putState: (context: string, path: string, value: any, cb: any) => {
-      if (!state_modes[value]) {
+      if (!states.find((s) => s.name === value)) {
         return { message: `Invalid Autopilot State: ${value}`, ...FAILURE_RES }
       } else {
-        const msg = util.format(
-          state_command,
-          new Date().toISOString(),
-          default_src,
-          padd(pilot.id.toString(16), 2),
-          state_modes[value]
-        )
-        sendN2k([msg])
-
         /*
-        const pgn = new PGN_130850_SimnetEventCommandApCommand({
-          address: 3,
-          event: SimnetApEvents.NavMode,
-          unusedB: state_modes[value],
-          direction:0
-        })
+        if (value === 'followUp') {
+          sendN2k([
+            util.format(
+              start_follow_up_command,
+              new Date().toISOString(),
+              default_src,
+              padd(pilot.id.toString(16), 2)
+            )
+          ])
+        } else if (value === 'nonFollowUp') {
+          sendN2k([
+            util.format(
+              start_follow_up_command,
+              new Date().toISOString(),
+              default_src,
+              padd(deviceid.toString(16), 2)
+            )
+          ])
+        } else */ {
+          let pgn: PGN
 
-      
-        const pgn2 = createNmeaGroupFunction(
-          GroupFunction.Command,
-          new PGN_65379_SeatalkPilotMode({
-            pilotMode: state_modes[value],
-            subMode: 0xffff
-          }),
-          { priority: Priority.LeaveUnchanged },
-          deviceid
-        )
+          switch (value) {
+            case 'auto':
+              pgn = new PGN_130850_SimnetCommandApNodrift({
+                address: pilot.id,
+                unknown: 0
+              })
+              break
+            case 'route':
+              pgn = new PGN_130850_SimnetCommandApNav({
+                address: pilot.id,
+                unknown: 0
+              })
+              break
+            case 'heading':
+              pgn = new PGN_130850_SimnetCommandApHeading({
+                address: pilot.id,
+                unknown: 0
+              })
+              break
+            case 'wind':
+              pgn = new PGN_130850_SimnetCommandApWind({
+                address: pilot.id,
+                unknown: 0
+              })
+              break
+            default:
+            case 'standby':
+              pgn = new PGN_130850_SimnetCommandApStandby({
+                address: pilot.id,
+                unknown: 0
+              })
+              break
+          }
 
-        sendN2k([pgn])
-        */
+          sendN2k([pgn])
+        }
+
         verifyChange(app, state_path, value, cb)
         return PENDING_RES
       }
@@ -210,25 +242,15 @@ export default function (app: any): Autopilot {
       if (state !== 'auto' && state !== 'wind') {
         return { message: 'Autopilot not in auto or wind mode', ...FAILURE_RES }
       } else {
-        let aString
-        switch (value) {
-          case 10:
-            aString = '+10'
-            break
-          case -10:
-            aString = '-10'
-            break
-          case 1:
-            aString = '+1'
-            break
-          case -1:
-            aString = '-1'
-            break
-          default:
-            return { message: `Invalid adjustment: ${value}`, ...FAILURE_RES }
-        }
-
-        sendN2k(changeHeading(app, pilot.id, aString))
+        const pgn = new PGN_130850_SimnetCommandApChangeCourse({
+          address: pilot.id,
+          commandType: SimnetApCommandType.ApCommand,
+          unknown: 0,
+          direction:
+            value > 0 ? SimnetDirection.Starboard : SimnetDirection.Port,
+          angle: degsToRad(Math.abs(value))
+        })
+        sendN2k([pgn])
         //verifyChange(app, target_wind_path, new_value, cb)
         return SUCCESS_RES
       }
@@ -251,13 +273,13 @@ export default function (app: any): Autopilot {
       if (state !== 'wind' && state !== 'auto') {
         return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
       } else {
-        const msg = util.format(
-          tack_command,
-          new Date().toISOString(),
-          default_src,
-          padd(pilot.id.toString(16), 2)
-        )
-        sendN2k([msg])
+        sendN2k([
+          new PGN_130850_SimnetCommandApTack({
+            address: pilot.id,
+            unknownA: 0,
+            unknownB: 0
+          })
+        ])
         return SUCCESS_RES
       }
     },
@@ -332,58 +354,6 @@ export default function (app: any): Autopilot {
   return pilot
 }
 
-function changeHeading(app: any, deviceid: number, key: string): string[] {
-  const state = app.getSelfPath(state_path)
-  app.debug('changeHeading: ' + state + ' ' + key)
-
-  const n2k_msgs = [
-    util.format(
-      heading_command,
-      new Date().toISOString(),
-      default_src,
-      padd(deviceid.toString(16), 2),
-      keys_code[key]
-    )
-  ]
-
-  /*
-  if ( state == "auto" )
-  {
-    const variation = app.getSelfPath('navigation.magneticVariation.value')
-    const current = app.getSelfPath(target_heading_path) - variation
-    new_value = radsToDeg(current) + ammount
-
-    if ( new_value < 0 ) {
-      new_value = 360 + new_value
-    } else if ( new_value > 360 ) {
-      new_value = new_value - 360
-    }
-    
-    app.debug(`current heading: ${radsToDeg(current)} new value: ${new_value}`)
-
-    command_format = heading_command
-  }
-  else //if ( state == "wind" )
-  {
-    const current = app.getSelfPath(target_wind_path)
-    new_value = radsToDeg(current) + ammount
-    
-    if ( new_value < 0 )
-      new_value = 360 + new_value
-    else if ( new_value > 360 )
-      new_value = new_value - 360
-
-    app.debug(`current wind angle: ${radsToDeg(current)} new value: ${new_value}`)
-    command_format = wind_direction_command
-  }
-  new_value = Math.trunc(degsToRad(new_value) * 10000)
-  n2k_msgs = [util.format(command_format, (new Date()).toISOString(), default_src,
-                          padd(deviceid.toString(16), 2), padd((new_value & 0xff).toString(16), 2), padd(((new_value >> 8) & 0xff).toString(16), 2))]
-  //n2k_msgs = [ '2025-09-28T19:16:14.377Z,2,130850,5,255,12,41,9f,03,ff,ff,0A,1A,00,03,d1,06,ff' ]
-  */
-  return n2k_msgs
-}
-
 function getPilotError(app: any) {
   let message
   const notifs: any = app.getSelfPath('notifications.autopilot')
@@ -430,8 +400,6 @@ function verifyChange(
   }, 1000)
 }
 
-function padd(n: string, p: number, c?: string): string {
-  const pad_char = typeof c !== 'undefined' ? c : '0'
-  const pad = new Array(1 + p).join(pad_char)
-  return (pad + n).slice(-pad.length)
+function degsToRad(degrees: number) {
+  return degrees * (Math.PI / 180.0)
 }
