@@ -54,7 +54,7 @@ export default function (app: any): Autopilot {
     start: (props) => {
       if (props.deviceid !== undefined) {
         //deviceid = props.deviceid
-        pilot.id = Number(props.deviceid)
+        pilot.id = Number(props.simradDeviceId)
         app.debug('props.deviceid:', pilot.id)
       }
     },
@@ -309,7 +309,7 @@ export default function (app: any): Autopilot {
       app.debug('*** post-discovery -> defaultId', defaultId)
   */
       return {
-        deviceid: {
+        simradDeviceId: {
           type: 'string',
           title: 'Simrad Autopilot NMEA2000 ID',
           default: '3'
