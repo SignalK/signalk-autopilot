@@ -239,8 +239,8 @@ export default function (app: any): Autopilot {
     putAdjustHeading: (context: string, path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'auto' && state !== 'wind') {
-        return { message: 'Autopilot not in auto or wind mode', ...FAILURE_RES }
+      if (state !== 'auto' && state !== 'heading' && state !== 'wind') {
+        return { message: 'Autopilot not in auto, heading or wind mode', ...FAILURE_RES }
       } else {
         const pgn = new PGN_130850_SimnetCommandApChangeCourse({
           address: pilot.id,
