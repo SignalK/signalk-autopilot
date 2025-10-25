@@ -52,7 +52,7 @@ export default function (app: any): Autopilot {
   const pilot: Autopilot = {
     id: defaultDeviceid,
     start: (props) => {
-      if (props.deviceid !== undefined) {
+      if (props.simradDeviceId !== undefined) {
         //deviceid = props.deviceid
         pilot.id = Number(props.simradDeviceId)
         app.debug('props.deviceid:', pilot.id)
