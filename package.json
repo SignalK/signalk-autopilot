@@ -1,6 +1,6 @@
 {
   "name": "@signalk/signalk-autopilot",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Plugin that controls an autopilot",
   "main": "dist/index.js",
   "scripts": {
