@@ -316,7 +316,8 @@ export default function (app: any): Autopilot {
                   v[id] &&
                   v[id].n2k &&
                   v[id].n2k.manufacturerCode == 'Navico' &&
-                  v[id].n2k.deviceFunction == 150 ) {
+                  v[id].n2k.deviceFunction == 150
+                ) {
                   discovered = id
                 }
               })
@@ -332,7 +333,7 @@ export default function (app: any): Autopilot {
       }
 
       app.debug('*** post-discovery -> defaultId', defaultId)
-  
+
       return {
         simradDeviceId: {
           type: 'string',
