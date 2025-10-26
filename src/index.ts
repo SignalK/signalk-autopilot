@@ -16,7 +16,7 @@
 
 import {
   ActionResult,
-  AutopilotProvider,
+  //AutopilotProvider,
   AutopilotInfo
 } from '@signalk/server-api'
 import raymarinen2k from './raymarinen2k'
@@ -41,24 +41,24 @@ export const types: { [key: string]: (app: any) => Autopilot } = {
 const apData: AutopilotInfo = {
   options: {
     states: [
-      { name: 'standby', engaged: false },
-      { name: 'auto', engaged: true },
-      { name: 'wind', engaged: true },
-      { name: 'route', engaged: true }
+      { name: 'engaged', engaged: true },
+      { name: 'disengaged', engaged: false }
     ],
-    modes: [],
+    modes: ['standby', 'auto', 'wind', 'route'],
     actions: []
   },
   mode: null,
-  state: null,
+  state: 'disengaged',
   engaged: false,
   target: null
 }
 
-const defaultEngagedState = 'auto'
-const isValidState = (value: string) => {
-  return apData.options.states.findIndex((i) => i.name === value) !== -1
+/*
+const defaultEngagedMode = 'auto'
+const isValidMode = (value: string) => {
+  return apData.options.modes.findIndex((i) => i === value) !== -1
 }
+  */
 
 export interface Autopilot {
   id: number
@@ -128,7 +128,7 @@ export default function (app: any) {
   let onStop: any[] = []
   let autopilot: Autopilot
   const pilots: { [key: string]: Autopilot } = {}
-  let apType = '' // autopilot type
+  //let apType = '' // autopilot type
 
   Object.keys(types).forEach((type) => {
     const module = types[type]
@@ -143,7 +143,7 @@ export default function (app: any) {
   })
 
   plugin.start = function (props: any) {
-    apType = props.type
+    //apType = props.type
     autopilot = pilots[props.type]
     autopilot.start(props)
 
@@ -178,10 +178,12 @@ export default function (app: any) {
       autopilot.putAdvanceWaypoint
     )
 
+    /*
     const possibleValues = apData.options.states.map((s) => {
       return { title: s.name, value: s.name }
     })
 
+    
     app.handleMessage(plugin.id, {
       updates: [
         {
@@ -201,6 +203,7 @@ export default function (app: any) {
     })
 
     registerProvider()
+    */
   }
 
   plugin.stop = function () {
@@ -244,6 +247,7 @@ export default function (app: any) {
   }
 
   // Autopilot API - register with Autopilot API
+  /*
   const registerProvider = () => {
     app.debug('**** intialise Sk path subscriptions *****')
     subscribeToPaths()
@@ -258,30 +262,30 @@ export default function (app: any) {
           return apData.state as string
         },
         setState: async (state, _deviceId) => {
-          if (isValidState(state)) {
-            return autopilot.putStatePromise(state)
-          } else {
-            throw new Error(`${state} is not a valid value!`)
-          }
+          return autopilot.putStatePromise(
+            state === 'engaged' ? defaultEngagedMode : 'standby'
+          )
         },
         getMode: async (_deviceId) => {
-          throw new Error('Not implemented!')
+          return apData.mode as string
         },
-        setMode: async (_mode, _deviceId) => {
-          throw new Error('Not implemented!')
+        setMode: async (mode, _deviceId) => {
+          if (isValidMode(mode)) {
+            return autopilot.putStatePromise(mode)
+          } else {
+            throw new Error(`${mode} is not a valid value!`)
+          }
         },
         getTarget: async (_deviceId) => {
           return apData.target as number
         },
         setTarget: async (value, _deviceId) => {
-          if (apData.state === 'auto') {
+          if (apData.mode === 'auto') {
             return autopilot.putTargetHeadingPromise(radiansToDegrees(value))
-          } else if (apData.state === 'wind') {
+          } else if (apData.mode === 'wind') {
             return autopilot.putTargetWindPromise(radiansToDegrees(value))
           } else {
-            throw new Error(
-              `Unable to set target value! STATE = ${apData.state}`
-            )
+            throw new Error(`Unable to set target value! MODE = ${apData.mode}`)
           }
         },
         adjustTarget: async (value, _deviceId) => {
@@ -290,7 +294,7 @@ export default function (app: any) {
           )
         },
         engage: async (_deviceId) => {
-          return autopilot.putStatePromise(defaultEngagedState)
+          return autopilot.putStatePromise(defaultEngagedMode)
         },
         disengage: async (_deviceId) => {
           return autopilot.putStatePromise('standby')
@@ -337,11 +341,12 @@ export default function (app: any) {
         processAPDeltas(msg)
       }
     )
-  }
+  }*/
 
   /** Process deltas for steering.autopilot data
    * Note: Only deltas where source.type = NMEA2000 and source.src = autopilot.id are processed!
    */
+  /*
   const processAPDeltas = async (delta: any) => {
     if (!Array.isArray(delta.updates)) {
       return
@@ -355,20 +360,20 @@ export default function (app: any) {
             update.source.type === 'NMEA2000'
           ) {
             // match the src value to the autopilot.id
-            if (update.source.src !== autopilot.id) {
+            if (Number(update.source.src) !== autopilot.id) {
               return
             }
             // map n2k device state to API.state & API.mode
             if (pathValue.path === 'steering.autopilot.state') {
-              apData.state = isValidState(pathValue.value)
+              apData.mode = isValidMode(pathValue.value)
                 ? pathValue.value
                 : null
-              const stateObj = apData.options.states.find(
-                (i) => i.name === pathValue.value
-              )
-              apData.engaged = stateObj ? stateObj.engaged : false
+              apData.state =
+                apData.mode === 'standby' ? 'disengaged' : 'engaged'
+              apData.engaged = apData.state === 'engaged'
               app.autopilotUpdate(apType, {
                 state: apData.state,
+                mode: apData.mode,
                 engaged: apData.engaged
               })
             }
@@ -397,8 +402,8 @@ export default function (app: any) {
       }
     })
   }
-
-  const radiansToDegrees = (value: number) => (value * 180) / Math.PI
+*/
+  //const radiansToDegrees = (value: number) => (value * 180) / Math.PI
 
   //const degreesToRadians = (value: number) => value * (Math.PI / 180.0)
 
