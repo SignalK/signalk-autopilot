@@ -134,7 +134,7 @@ const default_src = '1'
 export default function (app: any): Autopilot {
   let deviceid: number = 204
   const timers: any[] = []
-  let discovered: number | undefined
+  let discovered: string | undefined
 
   const pilot: Autopilot = {
     id: deviceid,
@@ -481,7 +481,7 @@ export default function (app: any): Autopilot {
     },
 
     properties: () => {
-      let defaultId = deviceid ?? '204'
+      let defaultId: string = deviceid.toString() ?? '204'
       let description = 'No EV-1 Found'
 
       //app.debug('***pre-discovery -> defaultId', defaultId)
@@ -502,7 +502,7 @@ export default function (app: any): Autopilot {
                     'Raymarine EV-1 Course Computer'
                   )
                 ) {
-                  discovered = Number(id)
+                  discovered = id
                 }
               })
             }

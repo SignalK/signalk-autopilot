@@ -60,6 +60,7 @@ const modes = ['standby', 'auto', 'wind', 'route', 'heading']
 export default function (app: any): Autopilot {
   const defaultDeviceid: number = 3
   const timers: any[] = []
+  let discovered: string | undefined
 
   const pilot: Autopilot = {
     id: defaultDeviceid,
@@ -299,9 +300,9 @@ export default function (app: any): Autopilot {
     },
 
     properties: () => {
-      //let defaultId = deviceid ?? '3'
-      /*
-      let description = 'No EV-1 Found'
+      let defaultId: string = pilot.id.toString() ?? defaultDeviceid.toString()
+
+      let description = 'No Simrad AP computer Found'
 
       if (!discovered) {
         //let full = app.deltaCache.buildFull(undefined, [ 'sources' ])
@@ -314,12 +315,9 @@ export default function (app: any): Autopilot {
                 if (
                   v[id] &&
                   v[id].n2k &&
-                  v[id].n2k.hardwareVersion &&
-                  v[id].n2k.hardwareVersion.startsWith(
-                    'Raymarine EV-1 Course Computer'
-                  )
-                ) {
-                  discovered = Number(id)
+                  v[id].n2k.manufacturerCode == 'Navico' &&
+                  v[id].n2k.deviceFunction == 150 ) {
+                  discovered = id
                 }
               })
             }
@@ -329,17 +327,18 @@ export default function (app: any): Autopilot {
 
       if (discovered) {
         defaultId = discovered
-        description = `Discovered an EV-1 with id ${discovered}`
+        description = `Discovered a Simrad AP computer with id ${discovered}`
         app.debug(description)
       }
 
       app.debug('*** post-discovery -> defaultId', defaultId)
-  */
+  
       return {
         simradDeviceId: {
           type: 'string',
           title: 'Simrad Autopilot NMEA2000 ID',
-          default: '3'
+          description,
+          default: defaultId
         }
       }
     }
