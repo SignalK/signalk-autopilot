@@ -44,7 +44,7 @@ const tack_command = '%s,2,130850,%s,255,12,41,9f,%s,ff,ff,0A,11,00,00,ff,ff,ff'
 const start_follow_up_command =
   '%s,2,130850,%s,255,12,41,9f,%s,ff,ff,02,0E,00,ff,ff,ff,ff'
 */
-
+/*
 const states = [
   { name: 'standby', engaged: false },
   { name: 'auto', engaged: true },
@@ -53,6 +53,14 @@ const states = [
   { name: 'heading', engaged: true }
   //{ name: 'followUp', engaged: true },
   //{ name: 'nonFollowUp', engaged: true }
+]
+*/
+const modes = [
+  'standby',
+  'auto',
+  'wind',
+  'route',
+  'heading'
 ]
 
 export default function (app: any): Autopilot {
@@ -75,8 +83,8 @@ export default function (app: any): Autopilot {
       })
     },
 
-    states: () => {
-      return states
+    modes: () => {
+      return modes
     },
 
     putTargetHeadingPromise: (value: number) => {
@@ -129,7 +137,7 @@ export default function (app: any): Autopilot {
     },
 
     putState: (context: string, path: string, value: any, cb: any) => {
-      if (!states.find((s) => s.name === value)) {
+      if (!modes.find((s) => s === value)) {
         return { message: `Invalid Autopilot State: ${value}`, ...FAILURE_RES }
       } else {
         /*

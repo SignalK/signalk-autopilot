@@ -40,24 +40,27 @@ export const types: { [key: string]: (app: any) => Autopilot } = {
 
 const apData: AutopilotInfo = {
   options: {
-    states: [
-      { name: 'standby', engaged: false },
-      { name: 'auto', engaged: true },
-      { name: 'wind', engaged: true },
-      { name: 'route', engaged: true }
+     states: [
+      { name: 'engaged', engaged: true },
+      { name: 'disengaged', engaged: false }
     ],
-    modes: [],
+    modes: [
+      'standby',
+      'auto',
+      'wind',
+      'route',
+    ],
     actions: []
   },
   mode: null,
-  state: null,
+  state: 'disengaged',
   engaged: false,
   target: null
 }
 
-const defaultEngagedState = 'auto'
-const isValidState = (value: string) => {
-  return apData.options.states.findIndex((i) => i.name === value) !== -1
+const defaultEngagedMode = 'auto'
+const isValidMode = (value: string) => {
+  return apData.options.modes.findIndex((i) => i === value) !== -1
 }
 
 export interface Autopilot {
@@ -182,6 +185,7 @@ export default function (app: any) {
       return { title: s.name, value: s.name }
     })
 
+    /*
     app.handleMessage(plugin.id, {
       updates: [
         {
@@ -201,6 +205,7 @@ export default function (app: any) {
     })
 
     registerProvider()
+    */
   }
 
   plugin.stop = function () {
@@ -258,29 +263,29 @@ export default function (app: any) {
           return apData.state as string
         },
         setState: async (state, _deviceId) => {
-          if (isValidState(state)) {
-            return autopilot.putStatePromise(state)
-          } else {
-            throw new Error(`${state} is not a valid value!`)
-          }
+          return autopilot.putStatePromise(state === 'engaged' ? defaultEngagedMode : 'standby')
         },
         getMode: async (_deviceId) => {
-          throw new Error('Not implemented!')
+          return apData.mode as string
         },
-        setMode: async (_mode, _deviceId) => {
-          throw new Error('Not implemented!')
+        setMode: async (mode, _deviceId) => {
+          if (isValidMode(mode)) {
+            return autopilot.putStatePromise(mode)
+          } else {
+            throw new Error(`${mode} is not a valid value!`)
+          }
         },
         getTarget: async (_deviceId) => {
           return apData.target as number
         },
         setTarget: async (value, _deviceId) => {
-          if (apData.state === 'auto') {
+          if (apData.mode === 'auto') {
             return autopilot.putTargetHeadingPromise(radiansToDegrees(value))
-          } else if (apData.state === 'wind') {
+          } else if (apData.mode === 'wind') {
             return autopilot.putTargetWindPromise(radiansToDegrees(value))
           } else {
             throw new Error(
-              `Unable to set target value! STATE = ${apData.state}`
+              `Unable to set target value! MODE = ${apData.mode}`
             )
           }
         },
@@ -290,7 +295,7 @@ export default function (app: any) {
           )
         },
         engage: async (_deviceId) => {
-          return autopilot.putStatePromise(defaultEngagedState)
+          return autopilot.putStatePromise(defaultEngagedMode)
         },
         disengage: async (_deviceId) => {
           return autopilot.putStatePromise('standby')
@@ -355,20 +360,19 @@ export default function (app: any) {
             update.source.type === 'NMEA2000'
           ) {
             // match the src value to the autopilot.id
-            if (update.source.src !== autopilot.id) {
+            if (Number(update.source.src) !== autopilot.id) {
               return
             }
             // map n2k device state to API.state & API.mode
             if (pathValue.path === 'steering.autopilot.state') {
-              apData.state = isValidState(pathValue.value)
+              apData.mode = isValidMode(pathValue.value)
                 ? pathValue.value
                 : null
-              const stateObj = apData.options.states.find(
-                (i) => i.name === pathValue.value
-              )
-              apData.engaged = stateObj ? stateObj.engaged : false
+              apData.state = apData.mode === 'standby' ? 'disengaged' : 'engaged'
+              apData.engaged = apData.state === 'engaged'
               app.autopilotUpdate(apType, {
                 state: apData.state,
+                mode: apData.mode,
                 engaged: apData.engaged
               })
             }
