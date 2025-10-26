@@ -55,13 +55,7 @@ const states = [
   //{ name: 'nonFollowUp', engaged: true }
 ]
 */
-const modes = [
-  'standby',
-  'auto',
-  'wind',
-  'route',
-  'heading'
-]
+const modes = ['standby', 'auto', 'wind', 'route', 'heading']
 
 export default function (app: any): Autopilot {
   const defaultDeviceid: number = 3
