@@ -23,6 +23,7 @@ import raymarinen2k from './raymarinen2k'
 import raystngconv from './raystngconv'
 import raymarinest from './raymarinest'
 import simrad from './simrad'
+import emulator from './emulator'
 
 const target_heading = 'steering.autopilot.target.headingMagnetic'
 const target_wind = 'steering.autopilot.target.windAngleApparent'
@@ -35,7 +36,8 @@ export const types: { [key: string]: (app: any) => Autopilot } = {
   raymarineN2K: raymarinen2k,
   raymarineST: raymarinest as (app: any) => Autopilot,
   raySTNGConv: raystngconv as (app: any) => Autopilot,
-  simrad: simrad as (app: any) => Autopilot
+  simrad: simrad as (app: any) => Autopilot,
+  emulator: emulator as (app: any) => Autopilot
 }
 
 const apData: AutopilotInfo = {
@@ -228,12 +230,19 @@ export default function (app: any) {
         type: {
           type: 'string',
           title: 'Autopilot Type',
-          enum: ['raymarineN2K', 'raySTNGConv', 'raymarineST', 'simrad'],
+          enum: [
+            'raymarineN2K',
+            'raySTNGConv',
+            'raymarineST',
+            'simrad',
+            'emulator'
+          ],
           enumNames: [
             'Raymarine NMEA2000',
             'Raymarine SmartPilot -> SeaTalk-STNG-Converter',
             'Raymarine Seatalk 1 AP',
-            'Simrad NMEA2000'
+            'Simrad NMEA2000',
+            'Emulator'
           ],
           default: 'raymarineN2K'
         },
