@@ -383,7 +383,7 @@ export default function (app: any) {
                 state: apData.state,
                 engaged: apData.engaged
               })
-              if ( apData.state != null && apData.state !== 'standby' ) {
+              if (apData.state != null && apData.state !== 'standby') {
                 lastState = apData.state
               }
             }
