@@ -129,6 +129,7 @@ export default function (app: any) {
   let autopilot: Autopilot
   const pilots: { [key: string]: Autopilot } = {}
   let apType = '' // autopilot type
+  let lastState: string | undefined = undefined
 
   Object.keys(types).forEach((type) => {
     const module = types[type]
@@ -299,7 +300,7 @@ export default function (app: any) {
           )
         },
         engage: async (_deviceId) => {
-          return autopilot.putStatePromise(defaultEngagedMode)
+          return autopilot.putStatePromise(lastState || defaultEngagedMode)
         },
         disengage: async (_deviceId) => {
           return autopilot.putStatePromise('standby')
@@ -382,6 +383,9 @@ export default function (app: any) {
                 state: apData.state,
                 engaged: apData.engaged
               })
+              if ( apData.state != null && apData.state !== 'standby' ) {
+                lastState = apData.state
+              }
             }
 
             // map n2k device target value to API.target
