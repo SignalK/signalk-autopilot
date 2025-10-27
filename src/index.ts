@@ -203,7 +203,7 @@ export default function (app: any) {
     })
       */
 
-    if (props.enableV2API) {
+    if (props.enableV2API === true || props.enableV2API === undefined) {
       registerProvider()
     }
   }
