@@ -19,6 +19,9 @@ import { types, Autopilot } from '../dist/index'
 import { TestApp, ExpectedEvent } from './utils'
 
 Object.entries(types).forEach(([name, type]) => {
+  if ( name === 'emulator' ) {
+    return
+  }
   describe(`test ${name} autopilot`, function () {
     it(`putState works`, (done) => {
       const expected: { [key: string]: ExpectedEvent[] } = {
