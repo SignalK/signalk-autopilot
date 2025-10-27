@@ -7,6 +7,8 @@
 To be able to acknowledge pilot related alarms through the GUI you need to install the `signalk-alarm-silencer` plugin.  
 - A back-end API described below.
 
+**To get the plugin to work in KIP, disable the V2 API in the plugin config.**
+
 Supports 
 - Raymarine NMEA 2000
 - Seatalk 1 Autopilots
