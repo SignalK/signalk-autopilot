@@ -19,7 +19,7 @@ import { types, Autopilot } from '../dist/index'
 import { TestApp, ExpectedEvent } from './utils'
 
 Object.entries(types).forEach(([name, type]) => {
-  if ( name === 'emulator' ) {
+  if (name === 'emulator') {
     return
   }
   describe(`test ${name} autopilot`, function () {
