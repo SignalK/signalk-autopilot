@@ -16,7 +16,7 @@
 
 import {
   ActionResult,
-  //AutopilotProvider,
+  AutopilotProvider,
   AutopilotInfo
 } from '@signalk/server-api'
 import raymarinen2k from './raymarinen2k'
@@ -40,25 +40,25 @@ export const types: { [key: string]: (app: any) => Autopilot } = {
 
 const apData: AutopilotInfo = {
   options: {
-    states: [
-      { name: 'engaged', engaged: true },
-      { name: 'disengaged', engaged: false }
+   states: [
+      { name: 'standby', engaged: false },
+      { name: 'auto', engaged: true },
+      { name: 'wind', engaged: true },
+      { name: 'route', engaged: true }
     ],
-    modes: ['standby', 'auto', 'wind', 'route'],
+    modes: [],
     actions: []
   },
   mode: null,
-  state: 'disengaged',
+  state: null,
   engaged: false,
   target: null
 }
 
-/*
 const defaultEngagedMode = 'auto'
-const isValidMode = (value: string) => {
-  return apData.options.modes.findIndex((i) => i === value) !== -1
+const isValidState = (value: string) => {
+  return apData.options.states.findIndex((i) => i.name === value) !== -1
 }
-  */
 
 export interface Autopilot {
   id: number
@@ -128,7 +128,7 @@ export default function (app: any) {
   let onStop: any[] = []
   let autopilot: Autopilot
   const pilots: { [key: string]: Autopilot } = {}
-  //let apType = '' // autopilot type
+  let apType = '' // autopilot type
 
   Object.keys(types).forEach((type) => {
     const module = types[type]
@@ -143,7 +143,7 @@ export default function (app: any) {
   })
 
   plugin.start = function (props: any) {
-    //apType = props.type
+    apType = props.type
     autopilot = pilots[props.type]
     autopilot.start(props)
 
@@ -187,7 +187,7 @@ export default function (app: any) {
     app.handleMessage(plugin.id, {
       updates: [
         {
-          values: [{ path: state_path, value: 'standby' }],
+          //values: [{ path: state_path, value: 'standby' }],
           meta: [
             {
               path: state_path,
@@ -201,9 +201,11 @@ export default function (app: any) {
         }
       ]
     })
+      */
 
-    registerProvider()
-    */
+    if ( props.enableV2API ) {
+      registerProvider()
+    }
   }
 
   plugin.stop = function () {
@@ -234,6 +236,13 @@ export default function (app: any) {
             'Simrad NMEA2000'
           ],
           default: 'raymarineN2K'
+        },
+        enableV2API: {
+          type: 'boolean',
+          title: 'Enable Autopilot V2 API',
+          description:
+            'Enables the Signal K Autopilot V2 API',
+          default: true
         }
       }
     }
@@ -247,7 +256,6 @@ export default function (app: any) {
   }
 
   // Autopilot API - register with Autopilot API
-  /*
   const registerProvider = () => {
     app.debug('**** intialise Sk path subscriptions *****')
     subscribeToPaths()
@@ -262,19 +270,17 @@ export default function (app: any) {
           return apData.state as string
         },
         setState: async (state, _deviceId) => {
-          return autopilot.putStatePromise(
-            state === 'engaged' ? defaultEngagedMode : 'standby'
-          )
+          if (isValidState(state)) {
+            return autopilot.putStatePromise(state)
+          } else {
+            throw new Error(`${state} is not a valid value!`)
+          }
         },
         getMode: async (_deviceId) => {
-          return apData.mode as string
+          throw new Error('Not implemented!')
         },
-        setMode: async (mode, _deviceId) => {
-          if (isValidMode(mode)) {
-            return autopilot.putStatePromise(mode)
-          } else {
-            throw new Error(`${mode} is not a valid value!`)
-          }
+        setMode: async (_mode, _deviceId) => {
+          throw new Error('Not implemented!')
         },
         getTarget: async (_deviceId) => {
           return apData.target as number
@@ -341,12 +347,12 @@ export default function (app: any) {
         processAPDeltas(msg)
       }
     )
-  }*/
+  }
 
   /** Process deltas for steering.autopilot data
    * Note: Only deltas where source.type = NMEA2000 and source.src = autopilot.id are processed!
    */
-  /*
+  
   const processAPDeltas = async (delta: any) => {
     if (!Array.isArray(delta.updates)) {
       return
@@ -363,17 +369,18 @@ export default function (app: any) {
             if (Number(update.source.src) !== autopilot.id) {
               return
             }
-            // map n2k device state to API.state & API.mode
+
+             // map n2k device state to API.state & API.mode
             if (pathValue.path === 'steering.autopilot.state') {
-              apData.mode = isValidMode(pathValue.value)
+              apData.state = isValidState(pathValue.value)
                 ? pathValue.value
                 : null
-              apData.state =
-                apData.mode === 'standby' ? 'disengaged' : 'engaged'
-              apData.engaged = apData.state === 'engaged'
+              const stateObj = apData.options.states.find(
+                (i) => i.name === pathValue.value
+              )
+              apData.engaged = stateObj ? stateObj.engaged : false
               app.autopilotUpdate(apType, {
                 state: apData.state,
-                mode: apData.mode,
                 engaged: apData.engaged
               })
             }
@@ -402,8 +409,8 @@ export default function (app: any) {
       }
     })
   }
-*/
-  //const radiansToDegrees = (value: number) => (value * 180) / Math.PI
+
+  const radiansToDegrees = (value: number) => (value * 180) / Math.PI
 
   //const degreesToRadians = (value: number) => value * (Math.PI / 180.0)
 
