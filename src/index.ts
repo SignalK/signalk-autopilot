@@ -40,7 +40,7 @@ export const types: { [key: string]: (app: any) => Autopilot } = {
 
 const apData: AutopilotInfo = {
   options: {
-   states: [
+    states: [
       { name: 'standby', engaged: false },
       { name: 'auto', engaged: true },
       { name: 'wind', engaged: true },
@@ -203,7 +203,7 @@ export default function (app: any) {
     })
       */
 
-    if ( props.enableV2API ) {
+    if (props.enableV2API) {
       registerProvider()
     }
   }
@@ -240,8 +240,7 @@ export default function (app: any) {
         enableV2API: {
           type: 'boolean',
           title: 'Enable Autopilot V2 API',
-          description:
-            'Enables the Signal K Autopilot V2 API',
+          description: 'Enables the Signal K Autopilot V2 API',
           default: true
         }
       }
@@ -352,7 +351,7 @@ export default function (app: any) {
   /** Process deltas for steering.autopilot data
    * Note: Only deltas where source.type = NMEA2000 and source.src = autopilot.id are processed!
    */
-  
+
   const processAPDeltas = async (delta: any) => {
     if (!Array.isArray(delta.updates)) {
       return
@@ -370,7 +369,7 @@ export default function (app: any) {
               return
             }
 
-             // map n2k device state to API.state & API.mode
+            // map n2k device state to API.state & API.mode
             if (pathValue.path === 'steering.autopilot.state') {
               apData.state = isValidState(pathValue.value)
                 ? pathValue.value

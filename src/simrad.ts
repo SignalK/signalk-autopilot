@@ -55,7 +55,6 @@ const states = [
   //{ name: 'nonFollowUp', engaged: true }
 ]
 
-
 export default function (app: any): Autopilot {
   const defaultDeviceid: number = 3
   const timers: any[] = []
