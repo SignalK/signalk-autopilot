@@ -370,12 +370,16 @@ export default function (app: any) {
       if (Array.isArray(update.values)) {
         update.values.forEach((pathValue: any) => {
           if (
-            update.source &&
-            update.source.type &&
-            update.source.type === 'NMEA2000'
+            update.$source === 'autopilot' ||
+            (update.source &&
+              update.source.type &&
+              update.source.type === 'NMEA2000')
           ) {
             // match the src value to the autopilot.id
-            if (Number(update.source.src) !== autopilot.id) {
+            if (
+              update.$source !== 'autopilot' &&
+              Number(update.source.src) !== autopilot.id
+            ) {
               return
             }
 
