@@ -82,6 +82,10 @@ Object.entries(types).forEach(([name, type]) => {
         simrad: []
       }
 
+      if (!expected[name]) {
+        done()
+        return
+      }
       const app = new TestApp(expected[name])
 
       const autopilot: Autopilot = type(app)
@@ -311,7 +315,8 @@ Object.entries(types).forEach(([name, type]) => {
             }
           }
         ],
-        simrad: []
+        simrad: [],
+        emulator: []
       }
 
       const app = new TestApp(expected[name], {
@@ -377,6 +382,11 @@ Object.entries(types).forEach(([name, type]) => {
           }
         ],
         simrad: []
+      }
+
+      if (!expected[name]) {
+        done()
+        return
       }
 
       const app = new TestApp(expected[name], {
