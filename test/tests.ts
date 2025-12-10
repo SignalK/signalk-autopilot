@@ -212,7 +212,8 @@ Object.entries(types).forEach(([name, type]) => {
         raymarineN2K: [
           {
             event: 'nmea2000out',
-            value: /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,e0,93/,
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,e0,93/,
             generates: [
               {
                 path: 'steering.autopilot.target.windAngleApparent',
