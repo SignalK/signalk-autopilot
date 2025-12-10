@@ -211,36 +211,9 @@ Object.entries(types).forEach(([name, type]) => {
         ],
         raymarineN2K: [
           {
-            event: 'nmea2000JsonOut',
-            value: {
-              description: undefined,
-              pgn: 126208,
-              prio: 3,
-              dst: 204,
-              input: undefined,
-              src: undefined,
-              timestamp: undefined,
-              fields: {
-                functionCode: 'Command',
-                pgn: 65360,
-                numberOfParameters: 3,
-                list: [
-                  {
-                    parameter: 1,
-                    value: 'Raymarine'
-                  },
-                  {
-                    parameter: 3,
-                    value: 'Marine Industry'
-                  },
-                  {
-                    parameter: 6,
-                    value: 0.5235987755982988
-                  }
-                ],
-                priority: 'Leave unchanged'
-              }
-            },
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,e0,93/,
             generates: [
               {
                 path: 'steering.autopilot.target.windAngleApparent',
