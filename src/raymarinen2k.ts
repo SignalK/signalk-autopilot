@@ -77,12 +77,14 @@ const st_keys: { [key: string]: { key: SeatalkKeystroke; inverted: number } } =
     '+1+10': { key: SeatalkKeystroke.Plus1AndPlus10, inverted: 221 }
   }
 
+const wind_direction_command =
+  '%s,3,126208,%s,%s,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,%s,%s'
+
 /*
 const key_command = "%s,7,126720,%s,%s,22,3b,9f,f0,81,86,21,%s,ff,ff,ff,ff,ff,c1,c2,cd,66,80,d3,42,b1,c8"
-const heading_command = "%s,3,126208,%s,%s,14,01,50,ff,00,f8,03,01,3b,07,03,04,06,%s,%s"
-const wind_direction_command = "%s,3,126208,%s,%s,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,%s,%s"
-const raymarine_ttw_Mode = "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
-const raymarine_ttw = "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
+const heading_command =        "%s,3,126208,%s,%s,14,01,50,ff,00,f8,03,01,3b,07,03,04,06,%s,%s"
+const raymarine_ttw_Mode =     "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
+const raymarine_ttw =          "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
 */
 const hull_type_command =
   '%s,3,126208,%s,%s,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,%s,52,ff'
@@ -381,19 +383,19 @@ export default function (app: any): Autopilot {
       if (state !== 'wind') {
         return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
       } else {
-        const new_value = degsToRad(value)
-
-        const pgn = createNmeaGroupFunction(
-          GroupFunction.Command,
-          new PGN_65360_SeatalkPilotLockedHeading({
-            targetHeadingMagnetic: new_value
-          }),
-          { priority: Priority.LeaveUnchanged },
-          deviceid
+        const new_value = Math.trunc(value * 10000)
+        const msg = util.format(
+          wind_direction_command,
+          new Date().toISOString(),
+          default_src,
+          deviceid,
+          padd((new_value & 0xff).toString(16), 2),
+          padd(((new_value >> 8) & 0xff).toString(16), 2)
         )
 
-        sendN2k([pgn])
-        verifyChange(app, target_wind_path, new_value, cb)
+        sendN2k([msg])
+        verifyChange(app, target_wind_path, degsToRad(value), cb)
+
         return PENDING_RES
       }
     },
