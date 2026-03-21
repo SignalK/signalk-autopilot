@@ -295,12 +295,13 @@ export default function (app: any) {
           return apData.target as number
         },
         setTarget: async (value, _deviceId) => {
-          if (apData.mode === 'auto') {
+          const mode = apData.mode ?? apData.state
+          if (mode === 'auto') {
             return autopilot.putTargetHeadingPromise(radiansToDegrees(value))
-          } else if (apData.mode === 'wind') {
+          } else if (mode === 'wind') {
             return autopilot.putTargetWindPromise(radiansToDegrees(value))
           } else {
-            throw new Error(`Unable to set target value! MODE = ${apData.mode}`)
+            throw new Error(`Unable to set target value! MODE = ${mode}`)
           }
         },
         adjustTarget: async (value, _deviceId) => {
@@ -309,7 +310,10 @@ export default function (app: any) {
           )
         },
         engage: async (_deviceId) => {
-          return autopilot.putStatePromise(lastState || defaultEngagedMode)
+          const engageState = lastState || defaultEngagedMode
+          apData.state = engageState
+          apData.mode = engageState
+          return autopilot.putStatePromise(engageState)
         },
         disengage: async (_deviceId) => {
           return autopilot.putStatePromise('standby')
@@ -388,6 +392,7 @@ export default function (app: any) {
               apData.state = isValidState(pathValue.value)
                 ? pathValue.value
                 : null
+              apData.mode = apData.state
               const stateObj = apData.options.states.find(
                 (i) => i.name === pathValue.value
               )
