@@ -17,7 +17,8 @@
 import {
   ActionResult,
   AutopilotProvider,
-  AutopilotInfo
+  AutopilotInfo,
+  AutopilotActionDef
 } from '@signalk/server-api'
 import raymarinen2k from './raymarinen2k'
 import raystngconv from './raystngconv'
@@ -61,6 +62,14 @@ const defaultEngagedMode = 'auto'
 const isValidState = (value: string) => {
   return apData.options.states.findIndex((i) => i.name === value) !== -1
 }
+
+const buildActions = (state: string | null, isDodging = false): AutopilotActionDef[] => [
+  { id: 'tack', name: 'Tack', available: state === 'wind' || state === 'auto' },
+  { id: 'gybe', name: 'Gybe', available: state === 'wind' || state === 'auto' },
+  { id: 'courseNextPoint', name: 'Advance Waypoint', available: state === 'route' },
+  { id: 'courseCurrentPoint', name: 'Steer to Waypoint', available: state !== 'route' && state !== null },
+  { id: 'dodge', name: 'Dodge', available: (state === 'auto' || state === 'wind' || state === 'route') && !isDodging }
+]
 
 export interface Autopilot {
   id: number
@@ -132,6 +141,9 @@ export default function (app: any) {
   const pilots: { [key: string]: Autopilot } = {}
   let apType = '' // autopilot type
   let lastState: string | undefined = undefined
+  let dodgeActive = false
+  let preDodgeState: string | null = null
+  let preDodgeTarget: number | null = null
 
   Object.keys(types).forEach((type) => {
     const module = types[type]
@@ -286,10 +298,15 @@ export default function (app: any) {
           }
         },
         getMode: async (_deviceId) => {
-          throw new Error('Not implemented!')
+          return apData.mode
         },
-        setMode: async (_mode, _deviceId) => {
-          throw new Error('Not implemented!')
+        setMode: async (mode, _deviceId) => {
+          // Raymarine/Simrad conflate mode and state
+          if (isValidState(mode)) {
+            return autopilot.putStatePromise(mode)
+          } else {
+            throw new Error(`${mode} is not a valid mode value!`)
+          }
         },
         getTarget: async (_deviceId) => {
           return apData.target as number
@@ -321,17 +338,95 @@ export default function (app: any) {
         tack: async (direction, _deviceId) => {
           return autopilot.putTackPromise(direction)
         },
-        gybe: async (_direction, _deviceId) => {
-          throw new Error('Not implemented!')
+        gybe: async (direction, _deviceId) => {
+          // Raymarine uses the same keystroke for tack and gybe —
+          // the pilot decides based on wind angle
+          return autopilot.putTackPromise(direction)
         },
-        dodge: async (_direction, _deviceId) => {
-          throw new Error('Not implemented!')
+        dodge: async (value, _deviceId) => {
+          if (value === null) {
+            // Cancel dodge — restore original state and target
+            if (!dodgeActive) {
+              throw new Error('Dodge mode is not active')
+            }
+            if (preDodgeState && preDodgeState !== apData.state) {
+              await autopilot.putStatePromise(preDodgeState)
+            }
+            if (preDodgeState !== 'route' && preDodgeTarget !== null) {
+              await autopilot.putTargetHeadingPromise(radiansToDegrees(preDodgeTarget))
+            }
+            dodgeActive = false
+            preDodgeState = null
+            preDodgeTarget = null
+            app.autopilotUpdate(apType, { actions: buildActions(apData.state, dodgeActive) })
+          } else if (value === 0) {
+            // Enter dodge — save current state, no course change yet
+            if (dodgeActive) {
+              throw new Error('Dodge mode is already active')
+            }
+            preDodgeState = apData.state
+            preDodgeTarget = apData.target
+            dodgeActive = true
+            if (apData.state === 'route') {
+              await autopilot.putStatePromise('auto')
+            }
+            app.autopilotUpdate(apType, { actions: buildActions(apData.state, dodgeActive) })
+          } else {
+            // Adjust dodge heading — decompose into ±10 and ±1 keystrokes
+            if (!dodgeActive) {
+              preDodgeState = apData.state
+              preDodgeTarget = apData.target
+              dodgeActive = true
+              if (apData.state === 'route') {
+                await autopilot.putStatePromise('auto')
+              }
+            }
+            let degrees = Math.round(radiansToDegrees(value))
+            const sign = degrees > 0 ? 1 : -1
+            degrees = Math.abs(degrees)
+            const tens = Math.floor(degrees / 10)
+            const ones = degrees % 10
+            for (let i = 0; i < tens; i++) {
+              await autopilot.putAdjustHeadingPromise(sign * 10)
+            }
+            for (let i = 0; i < ones; i++) {
+              await autopilot.putAdjustHeadingPromise(sign * 1)
+            }
+            app.autopilotUpdate(apType, { actions: buildActions(apData.state, dodgeActive) })
+          }
         },
         courseCurrentPoint: async (_deviceId: string): Promise<void> => {
-          throw new Error('Not implemented!')
+          // Per API spec: engage the appropriate mode to steer to the active waypoint
+          return autopilot.putStatePromise('route')
         },
         courseNextPoint: async (_deviceId: string): Promise<void> => {
-          throw new Error('Not implemented!')
+          const state = app.getSelfPath(state_path + '.value')
+          if (state !== 'route') {
+            throw new Error('Autopilot not in route/track mode')
+          }
+          const result = autopilot.putAdvanceWaypoint(
+            'vessels.self', advance, 1, undefined
+          )
+          if (result.state !== 'COMPLETED') {
+            throw new Error(result.message || 'Advance waypoint failed')
+          }
+          // Advance the server's course pointIndex.
+          // On real hardware the chartplotter may do this via N2K,
+          // but when SignalK manages the route we must do it here.
+          try {
+            const course = await app.courseApi.getCourse()
+            if (course?.activeRoute?.href) {
+              const nextIndex = (course.activeRoute.pointIndex ?? 0) + 1
+              await app.courseApi.activeRoute({
+                href: course.activeRoute.href,
+                reverse: course.activeRoute.reverse ?? false,
+                pointIndex: nextIndex,
+                arrivalCircle: course.arrivalCircle ?? 100
+              })
+            }
+          } catch (e: any) {
+            app.debug('courseNextPoint: failed to advance course', e?.message ?? e)
+          }
         }
       }
       app.registerAutopilotProvider(provider, [apType])
@@ -397,9 +492,13 @@ export default function (app: any) {
                 (i) => i.name === pathValue.value
               )
               apData.engaged = stateObj ? stateObj.engaged : false
+              // Update available actions based on current state
+              apData.options.actions = buildActions(apData.state, dodgeActive)
+
               app.autopilotUpdate(apType, {
                 state: apData.state,
-                engaged: apData.engaged
+                engaged: apData.engaged,
+                actions: apData.options.actions
               })
               if (apData.state != null && apData.state !== 'standby') {
                 lastState = apData.state
