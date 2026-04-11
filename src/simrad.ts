@@ -59,6 +59,7 @@ export default function (app: any): Autopilot {
   const defaultDeviceid: number = 3
   const timers: any[] = []
   let discovered: string | undefined
+  let srcId: number = -1
 
   const pilot: Autopilot = {
     id: defaultDeviceid,
@@ -68,6 +69,10 @@ export default function (app: any): Autopilot {
         pilot.id = Number(props.simradDeviceId)
         app.debug('props.deviceid:', pilot.id)
       }
+      srcId =
+        props.simradSrcDeviceId !== undefined
+          ? Number(props.simradSrcDeviceId)
+          : -1
     },
 
     stop: () => {
@@ -313,7 +318,8 @@ export default function (app: any): Autopilot {
                 if (
                   v[id] &&
                   v[id].n2k &&
-                  v[id].n2k.manufacturerCode == 'Navico' &&
+                  (v[id].n2k.manufacturerCode == 'Navico' ||
+                    v[id].n2k.manufacturerCode == 'Simrad') &&
                   v[id].n2k.deviceFunction == 150
                 ) {
                   discovered = id
@@ -338,17 +344,28 @@ export default function (app: any): Autopilot {
           title: 'Simrad Autopilot NMEA2000 ID',
           description,
           default: defaultId
+        },
+        simradSrcDeviceId: {
+          type: 'string',
+          title: 'Simrad Autopilot Source NMEA2000 ID',
+          description:
+            "NMEA2000 Source ID to use when sending commands to the autopilot, don't change unless needed (only works with socketcan devices)",
+          default: -1
         }
       }
     }
   }
 
-  function sendN2k(msgs: any[]) {
+  function sendN2k(msgs: PGN[]) {
     app.debug('n2k_msg: ' + JSON.stringify(msgs))
     msgs.map(function (msg) {
       if (typeof msg === 'string') {
         app.emit('nmea2000out', msg)
       } else {
+        if (srcId !== -1) {
+          ;(msg as any).src = srcId
+          ;(msg as any).forceSrc = true
+        }
         app.emit('nmea2000JsonOut', msg)
       }
     })
