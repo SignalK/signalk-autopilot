@@ -216,6 +216,15 @@ export default function (app: any): Autopilot {
       })
     },
 
+    states: () => {
+      return [
+        { name: 'standby', engaged: false },
+        { name: 'auto', engaged: true },
+        { name: 'wind', engaged: true },
+        { name: 'route', engaged: true }
+      ]
+    },
+
     putHullType: (context, path, value, _cb): ActionResult => {
       const type = hullTypes[value]
       const state = app.getSelfPath(state_path)
