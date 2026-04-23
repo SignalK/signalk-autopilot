@@ -93,14 +93,14 @@ export default function (app: any): Autopilot {
           value,
           (res: any) => {
             if (res.statusCode != 200) {
-              reject(new Error(res.message))
+              reject(res)
             } else {
               resolve()
             }
           }
         )
         if (res.state !== 'PENDING') {
-          reject(new Error(res.message))
+          reject(res)
         }
       })
     },
@@ -122,14 +122,14 @@ export default function (app: any): Autopilot {
           value,
           (res: any) => {
             if (res.statusCode != 200) {
-              reject(new Error(res.message))
+              reject(res)
             } else {
               resolve()
             }
           }
         )
         if (res.state !== 'PENDING') {
-          reject(new Error(res.message))
+          reject(res)
         }
       })
     },
@@ -212,14 +212,14 @@ export default function (app: any): Autopilot {
           value,
           (res: any) => {
             if (res.statusCode != 200) {
-              reject(new Error(res.message))
+              reject(res)
             } else {
               resolve()
             }
           }
         )
         if (res.state !== 'PENDING') {
-          reject(new Error(res.message))
+          reject(res)
         }
       })
     },
@@ -237,7 +237,7 @@ export default function (app: any): Autopilot {
           () => {}
         )
         if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(new Error(res.message))
+          reject(res)
         } else {
           resolve()
         }
@@ -276,7 +276,7 @@ export default function (app: any): Autopilot {
       return new Promise((resolve, reject) => {
         const res: any = pilot.putTack(undefined, undefined, value, () => {})
         if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(new Error(res.message))
+          reject(res)
         } else {
           resolve()
         }
