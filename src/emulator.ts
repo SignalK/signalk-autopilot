@@ -42,7 +42,7 @@ export default function (app: any): Autopilot {
             }
           ]
         }
-        if (currentState === 'auto' && currentTarget !== undefined) {
+        if ((currentState === 'auto' || currentState === 'route') && currentTarget !== undefined) {
           delta.updates[0].values.push({
             path: 'steering.autopilot.target.headingMagnetic',
             value: currentTarget
@@ -65,7 +65,8 @@ export default function (app: any): Autopilot {
       return [
         { name: 'standby', engaged: false },
         { name: 'auto', engaged: true },
-        { name: 'wind', engaged: true }
+        { name: 'wind', engaged: true },
+        { name: 'route', engaged: true }
       ]
     },
 
@@ -129,7 +130,7 @@ export default function (app: any): Autopilot {
         ]
       }
 
-      if (value === 'auto') {
+      if (value === 'auto' || value === 'route') {
         const heading = app.getSelfPath('navigation.headingMagnetic.value')
         if (heading !== undefined) {
           currentTarget = heading
@@ -210,12 +211,12 @@ export default function (app: any): Autopilot {
     putAdjustHeading: (context: string, path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'auto' && state !== 'wind') {
+      if (state !== 'auto' && state !== 'wind' && state !== 'route') {
         return {
-          message: 'Autopilot not in auto or wind mode',
+          message: 'Autopilot not in auto, wind or route mode',
           ...FAILURE_RES
         }
-      } else if (state === 'auto') {
+      } else if (state === 'auto' || state === 'route') {
         const target = app.getSelfPath(
           'steering.autopilot.target.headingMagnetic.value'
         )
@@ -274,8 +275,15 @@ export default function (app: any): Autopilot {
       })
     },
 
-    putTack: (_context: string, _path: string, _value: any, _cb: any) => {
-      return { message: 'Unsupported', ...FAILURE_RES }
+    putTack: (_context: string, _path: string, value: any, _cb: any) => {
+      const state = app.getSelfPath(state_path)
+      if (state !== 'wind' && state !== 'auto') {
+        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      }
+      if (value !== 'port' && value !== 'starboard') {
+        return { message: `Invalid tack direction: ${value}`, ...FAILURE_RES }
+      }
+      return SUCCESS_RES
     },
 
     putAdvanceWaypoint: (
@@ -284,7 +292,11 @@ export default function (app: any): Autopilot {
       _value: any,
       _cb: any
     ) => {
-      return { message: 'Unsupported', ...FAILURE_RES }
+      const state = app.getSelfPath(state_path)
+      if (state !== 'route') {
+        return { message: 'Autopilot not in route/track mode', ...FAILURE_RES }
+      }
+      return SUCCESS_RES
     },
 
     properties: () => {

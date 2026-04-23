@@ -185,8 +185,8 @@ module.exports = function (app) {
   pilot.putAdjustHeading = (context, path, value, _cb) => {
     var state = app.getSelfPath(state_path)
 
-    if (state !== 'auto' && state !== 'wind') {
-      return { message: 'Autopilot not in auto or wind mode', ...FAILURE_RES }
+    if (state !== 'auto' && state !== 'wind' && state !== 'route') {
+      return { message: 'Autopilot not in auto, wind or route mode', ...FAILURE_RES }
     } else {
       let aString
       switch (value) {
