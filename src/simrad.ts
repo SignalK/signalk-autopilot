@@ -135,7 +135,7 @@ export default function (app: any): Autopilot {
     },
 
     putState: (context: string, path: string, value: any, cb: any) => {
-      if (!states.find((s) => s.name === value)) {
+      if (!states.find((s) => s.name === value) && value !== 'auto') {
         return { message: `Invalid Autopilot State: ${value}`, ...FAILURE_RES }
       } else {
         /*
@@ -163,6 +163,7 @@ export default function (app: any): Autopilot {
           switch (value) {
             case 'auto':
             case 'nodrift':
+              value = 'nodrift'
               pgn = new PGN_130850_SimnetCommandApNodrift({
                 address: pilot.id,
                 unknown: 0
