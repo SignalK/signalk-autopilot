@@ -112,7 +112,7 @@ export default function (app: any): Autopilot {
             }
           }
         )
-        if (res.state !== 'COMPLETED') {
+        if (res.statusCode !== 200) {
           reject(new Error(res.message))
         } else {
           resolve()
@@ -199,7 +199,7 @@ export default function (app: any): Autopilot {
           value,
           () => {}
         )
-        if (res.statusCode === FAILURE_RES.statusCode) {
+        if (res.statusCode !== 200) {
           reject(new Error(res.message))
         } else {
           resolve()
