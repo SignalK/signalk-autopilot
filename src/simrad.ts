@@ -47,7 +47,7 @@ const start_follow_up_command =
 
 const states = [
   { name: 'standby', engaged: false },
-  { name: 'auto', engaged: true },
+  { name: 'nodrift', engaged: true },
   { name: 'wind', engaged: true },
   { name: 'route', engaged: true },
   { name: 'heading', engaged: true }
@@ -162,6 +162,7 @@ export default function (app: any): Autopilot {
 
           switch (value) {
             case 'auto':
+            case 'nodrift':
               pgn = new PGN_130850_SimnetCommandApNodrift({
                 address: pilot.id,
                 unknown: 0
@@ -245,9 +246,14 @@ export default function (app: any): Autopilot {
     putAdjustHeading: (context: string, path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'auto' && state !== 'heading' && state !== 'wind') {
+      if (
+        state !== 'auto' &&
+        state !== 'nodrift' &&
+        state !== 'heading' &&
+        state !== 'wind'
+      ) {
         return {
-          message: 'Autopilot not in auto, heading or wind mode',
+          message: 'Autopilot not in nodrift, heading or wind mode',
           ...FAILURE_RES
         }
       } else {
@@ -279,8 +285,11 @@ export default function (app: any): Autopilot {
     putTack: (_context: string, _path: string, _value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'wind' && state !== 'auto') {
-        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      if (state !== 'wind' && state !== 'auto' && state !== 'nodrift') {
+        return {
+          message: 'Autopilot not in wind, auto, or nodrift mode',
+          ...FAILURE_RES
+        }
       } else {
         sendN2k([
           new PGN_130850_SimnetCommandApTack({
