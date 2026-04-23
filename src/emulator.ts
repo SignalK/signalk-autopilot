@@ -77,14 +77,14 @@ export default function (app: any): Autopilot {
           value,
           (res: any) => {
             if (res.statusCode != 200) {
-              reject(new Error(res.message))
+              reject(res)
             } else {
               resolve()
             }
           }
         )
         if (res.state !== 'COMPLETED') {
-          reject(new Error(res.message))
+          reject(res)
         }
       })
     },
@@ -106,14 +106,14 @@ export default function (app: any): Autopilot {
           value,
           (res: any) => {
             if (res.statusCode != 200) {
-              reject(new Error(res.message))
+              reject(res)
             } else {
               resolve()
             }
           }
         )
         if (res.statusCode !== 200) {
-          reject(new Error(res.message))
+          reject(res)
         } else {
           resolve()
         }
@@ -130,35 +130,20 @@ export default function (app: any): Autopilot {
       }
 
       if (value === 'auto') {
-        const heading = app.getSelfPath('navigation.headingMagnetic.value')
-        if (heading !== undefined) {
-          currentTarget = heading
-          delta.updates[0].values.push({
-            path: 'steering.autopilot.target.headingMagnetic',
-            value: heading
-          })
-        } else {
-          return {
-            message: 'No magnetic heading available',
-            ...FAILURE_RES
-          }
-        }
+        const heading = app.getSelfPath('navigation.headingMagnetic.value') || 0
+        currentTarget = heading
+        delta.updates[0].values.push({
+          path: 'steering.autopilot.target.headingMagnetic',
+          value: heading
+        })
       } else if (value === 'wind') {
-        const windAngle = app.getSelfPath(
-          'environment.wind.angleApparent.value'
-        )
-        if (windAngle !== undefined) {
-          currentTarget = windAngle
-          delta.updates[0].values.push({
-            path: 'steering.autopilot.target.windAngleApparent',
-            value: windAngle
-          })
-        } else {
-          return {
-            message: 'No apparent wind angle available',
-            ...FAILURE_RES
-          }
-        }
+        const windAngle =
+          app.getSelfPath('environment.wind.angleApparent.value') || 0
+        currentTarget = windAngle
+        delta.updates[0].values.push({
+          path: 'steering.autopilot.target.windAngleApparent',
+          value: windAngle
+        })
       }
 
       currentState = value
@@ -175,14 +160,14 @@ export default function (app: any): Autopilot {
           value,
           (res: any) => {
             if (res.statusCode != 200) {
-              reject(new Error(res.message))
+              reject(res)
             } else {
               resolve()
             }
           }
         )
         if (res.state !== 'PENDING') {
-          reject(new Error(res.message))
+          reject(res)
         }
       })
     },
@@ -200,7 +185,7 @@ export default function (app: any): Autopilot {
           () => {}
         )
         if (res.statusCode !== 200) {
-          reject(new Error(res.message))
+          reject(res)
         } else {
           resolve()
         }
@@ -267,7 +252,7 @@ export default function (app: any): Autopilot {
       return new Promise((resolve, reject) => {
         const res: any = pilot.putTack(undefined, undefined, value, () => {})
         if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(new Error(res.message))
+          reject(res)
         } else {
           resolve()
         }

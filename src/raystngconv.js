@@ -85,7 +85,7 @@ module.exports = function (app) {
     return new Promise((resolve, reject) => {
       const res = pilot.putTargetHeading(undefined, undefined, value)
       if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(new Error(res.message))
+        reject(res)
       } else {
         resolve()
       }
@@ -117,7 +117,7 @@ module.exports = function (app) {
     return new Promise((resolve, reject) => {
       const res = pilot.putState(undefined, undefined, value)
       if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(new Error(res.message))
+        reject(res)
       } else {
         resolve()
       }
@@ -143,7 +143,7 @@ module.exports = function (app) {
     return new Promise((resolve, reject) => {
       const res = pilot.putTargetWind(undefined, undefined, value)
       if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(new Error(res.message))
+        reject(res)
       } else {
         resolve()
       }
@@ -175,7 +175,7 @@ module.exports = function (app) {
     return new Promise((resolve, reject) => {
       const res = pilot.putAdjustHeading(undefined, undefined, value)
       if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(new Error(res.message))
+        reject(res)
       } else {
         resolve()
       }
@@ -214,7 +214,7 @@ module.exports = function (app) {
     return new Promise((resolve, reject) => {
       const res = pilot.putTack(undefined, undefined, value)
       if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(new Error(res.message))
+        reject(res)
       } else {
         resolve()
       }
