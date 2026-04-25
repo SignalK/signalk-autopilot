@@ -356,7 +356,7 @@ export default function (app: any): Autopilot {
           default: defaultId
         },
         simradSrcDeviceId: {
-          type: 'string',
+          type: 'number',
           title: 'Simrad Autopilot Source NMEA2000 ID',
           description:
             "NMEA2000 Source ID to use when sending commands to the autopilot, don't change unless needed (only works with socketcan devices)",
