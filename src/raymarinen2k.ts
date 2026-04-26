@@ -586,7 +586,9 @@ export default function (app: any): Autopilot {
   }
 
   function sendN2k(msgs: any[]) {
-    app.debug('n2k_msg: ' + JSON.stringify(msgs))
+    if (app.debug.enabled) {
+      app.debug('n2k_msg: ' + JSON.stringify(msgs))
+    }
     msgs.map(function (msg) {
       if (typeof msg === 'string') {
         app.emit('nmea2000out', msg)
