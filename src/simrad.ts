@@ -45,9 +45,13 @@ const start_follow_up_command =
   '%s,2,130850,%s,255,12,41,9f,%s,ff,ff,02,0E,00,ff,ff,ff,ff'
 */
 
+// Simrad's native state vocabulary. "nodrift" was previously misnamed "auto"
+// to look raymarine-shaped — that conflated two distinct concepts (Simrad has
+// "nodrift" and "heading" as separate engaged modes; it has no "auto"). Renamed
+// to match what the device actually does.
 const states = [
   { name: 'standby', engaged: false },
-  { name: 'auto', engaged: true },
+  { name: 'nodrift', engaged: true },
   { name: 'wind', engaged: true },
   { name: 'route', engaged: true },
   { name: 'heading', engaged: true }
@@ -78,6 +82,50 @@ export default function (app: any): Autopilot {
 
     states: () => {
       return states
+    },
+
+    // "nodrift" and "heading" are both heading-target states; "wind" uses a
+    // wind target; "route" follows the active waypoint.
+    targetTypeForState: (state: string) => {
+      switch (state) {
+        case 'nodrift':
+        case 'heading':
+          return 'heading'
+        case 'wind':
+          return 'wind'
+        case 'route':
+          return 'route'
+        default:
+          return null
+      }
+    },
+
+    routeState: () => 'route',
+
+    defaultEngagedState: () => 'nodrift',
+
+    actionsForState: (state, isDodging) => {
+      const tackable =
+        state === 'wind' || state === 'nodrift' || state === 'heading'
+      return [
+        { id: 'tack', name: 'Tack', available: tackable },
+        { id: 'gybe', name: 'Gybe', available: tackable },
+        {
+          id: 'courseNextPoint',
+          name: 'Advance Waypoint',
+          available: state === 'route'
+        },
+        {
+          id: 'courseCurrentPoint',
+          name: 'Steer to Waypoint',
+          available: state !== null && state !== 'route' && state !== 'standby'
+        },
+        {
+          id: 'dodge',
+          name: 'Dodge',
+          available: state !== null && state !== 'standby' && !isDodging
+        }
+      ]
     },
 
     putTargetHeadingPromise: (value: number) => {
@@ -156,7 +204,7 @@ export default function (app: any): Autopilot {
           let pgn: PGN
 
           switch (value) {
-            case 'auto':
+            case 'nodrift':
               pgn = new PGN_130850_SimnetCommandApNodrift({
                 address: pilot.id,
                 unknown: 0
@@ -240,9 +288,9 @@ export default function (app: any): Autopilot {
     putAdjustHeading: (context: string, path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'auto' && state !== 'heading' && state !== 'wind') {
+      if (state !== 'nodrift' && state !== 'heading' && state !== 'wind') {
         return {
-          message: 'Autopilot not in auto, heading or wind mode',
+          message: 'Autopilot not in nodrift, heading or wind mode',
           ...FAILURE_RES
         }
       } else {
@@ -274,8 +322,11 @@ export default function (app: any): Autopilot {
     putTack: (_context: string, _path: string, _value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'wind' && state !== 'auto') {
-        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      if (state !== 'wind' && state !== 'nodrift') {
+        return {
+          message: 'Autopilot not in wind or nodrift mode',
+          ...FAILURE_RES
+        }
       } else {
         sendN2k([
           new PGN_130850_SimnetCommandApTack({

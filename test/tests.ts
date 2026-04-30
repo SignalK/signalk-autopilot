@@ -94,10 +94,13 @@ Object.entries(types).forEach(([name, type]) => {
       const autopilot: Autopilot = type(app)
       autopilot.start({})
 
+      // Simrad's heading-engaged state is "nodrift" (not "auto").
+      const engagedState = name === 'simrad' ? 'nodrift' : 'auto'
+
       const res = autopilot.putState(
         undefined,
         undefined,
-        'auto',
+        engagedState,
         (res: any) => {
           expect(res.state).to.equal('COMPLETED')
           done()
@@ -295,8 +298,9 @@ Object.entries(types).forEach(([name, type]) => {
         emulator: []
       }
 
+      const engagedState = name === 'simrad' ? 'nodrift' : 'auto'
       const app = new TestApp(expected[name], {
-        'steering.autopilot.state.value': 'auto'
+        'steering.autopilot.state.value': engagedState
       })
 
       const autopilot: Autopilot = type(app)

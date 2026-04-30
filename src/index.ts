@@ -58,18 +58,40 @@ const apData: AutopilotInfo = {
   target: null
 }
 
-const defaultEngagedMode = 'auto'
+// Default target-type table used when the AP backend doesn't override
+// targetTypeForState(). Maps a state name to the kind of target value that
+// state expects: 'heading' (heading-target states), 'wind' (wind-vane states),
+// 'route' (route/track follows the active waypoint and has no settable target).
+type TargetType = 'heading' | 'wind' | 'route' | null
+const DEFAULT_TARGET_TYPES: { [k: string]: TargetType } = {
+  auto: 'heading',
+  wind: 'wind',
+  route: 'route'
+}
+const DEFAULT_ROUTE_STATE = 'route'
+const DEFAULT_DODGE_FALLBACK_STATE = 'auto'
+
 const isValidState = (value: string) => {
   return apData.options.states.findIndex((i) => i.name === value) !== -1
 }
 
-const buildActions = (state: string | null, isDodging = false): AutopilotActionDef[] => [
-  { id: 'tack', name: 'Tack', available: state === 'wind' || state === 'auto' },
-  { id: 'gybe', name: 'Gybe', available: state === 'wind' || state === 'auto' },
-  { id: 'courseNextPoint', name: 'Advance Waypoint', available: state === 'route' },
-  { id: 'courseCurrentPoint', name: 'Steer to Waypoint', available: state !== 'route' && state !== null },
-  { id: 'dodge', name: 'Dodge', available: (state === 'auto' || state === 'wind' || state === 'route') && !isDodging }
-]
+const buildDefaultActions = (
+  state: string | null,
+  isDodging: boolean,
+  routeState: string,
+  engagedStates: string[]
+): AutopilotActionDef[] => {
+  // Default Raymarine-shaped action availability. Backends with different
+  // vocabularies should override Autopilot.actionsForState().
+  const tackable = state === 'wind' || state === 'auto'
+  return [
+    { id: 'tack', name: 'Tack', available: tackable },
+    { id: 'gybe', name: 'Gybe', available: tackable },
+    { id: 'courseNextPoint', name: 'Advance Waypoint', available: state === routeState },
+    { id: 'courseCurrentPoint', name: 'Steer to Waypoint', available: state !== null && state !== routeState && engagedStates.includes(state) },
+    { id: 'dodge', name: 'Dodge', available: state !== null && engagedStates.includes(state) && !isDodging }
+  ]
+}
 
 export interface Autopilot {
   id: number
@@ -77,6 +99,15 @@ export interface Autopilot {
   stop(): void
   states?(): { name: string; engaged: boolean }[]
   modes?(): string[]
+
+  // Capability hooks — let backends declare what their state names mean,
+  // instead of index.ts guessing from Raymarine-shaped string literals.
+  defaultEngagedState?(): string
+  targetTypeForState?(state: string): TargetType
+  actionsForState?(state: string | null, isDodging: boolean): AutopilotActionDef[]
+  routeState?(): string
+  // State to switch to during dodge (e.g. route -> auto), or null to stay put.
+  dodgeFallbackState?(state: string): string | null
   putState(
     context: string | undefined,
     path: string | undefined,
@@ -276,6 +307,37 @@ export default function (app: any) {
     return config
   }
 
+  // Resolvers — ask the AP backend, fall back to a Raymarine-shaped default.
+  // Keeps state-name knowledge inside the backend that owns it.
+  const apTargetType = (state: string | null): TargetType => {
+    if (!state) return null
+    if (autopilot?.targetTypeForState) return autopilot.targetTypeForState(state)
+    return DEFAULT_TARGET_TYPES[state] ?? null
+  }
+  const apRouteState = (): string =>
+    autopilot?.routeState?.() ?? DEFAULT_ROUTE_STATE
+  const apDefaultEngagedState = (): string => {
+    if (autopilot?.defaultEngagedState) return autopilot.defaultEngagedState()
+    const firstEngaged = apData.options.states.find((s) => s.engaged)
+    return firstEngaged?.name ?? 'auto'
+  }
+  const apActionsForState = (
+    state: string | null,
+    isDodging: boolean
+  ): AutopilotActionDef[] => {
+    if (autopilot?.actionsForState)
+      return autopilot.actionsForState(state, isDodging)
+    const engagedStates = apData.options.states
+      .filter((s) => s.engaged)
+      .map((s) => s.name)
+    return buildDefaultActions(state, isDodging, apRouteState(), engagedStates)
+  }
+  const apDodgeFallbackState = (state: string): string | null => {
+    if (autopilot?.dodgeFallbackState) return autopilot.dodgeFallbackState(state)
+    // Default: route mode can't dodge directly — switch to auto first.
+    return state === apRouteState() ? DEFAULT_DODGE_FALLBACK_STATE : null
+  }
+
   // Autopilot API - register with Autopilot API
   const registerProvider = () => {
     app.debug('**** intialise Sk path subscriptions *****')
@@ -313,12 +375,13 @@ export default function (app: any) {
         },
         setTarget: async (value, _deviceId) => {
           const mode = apData.mode ?? apData.state
-          if (mode === 'auto') {
+          const targetType = apTargetType(mode)
+          if (targetType === 'heading') {
             return autopilot.putTargetHeadingPromise(radiansToDegrees(value))
-          } else if (mode === 'wind') {
+          } else if (targetType === 'wind') {
             return autopilot.putTargetWindPromise(radiansToDegrees(value))
           } else {
-            throw new Error(`Unable to set target value! MODE = ${mode}`)
+            throw new Error(`Unable to set target value! state = ${mode}`)
           }
         },
         adjustTarget: async (value, _deviceId) => {
@@ -327,7 +390,7 @@ export default function (app: any) {
           )
         },
         engage: async (_deviceId) => {
-          const engageState = lastState || defaultEngagedMode
+          const engageState = lastState || apDefaultEngagedState()
           apData.state = engageState
           apData.mode = engageState
           return autopilot.putStatePromise(engageState)
@@ -352,13 +415,21 @@ export default function (app: any) {
             if (preDodgeState && preDodgeState !== apData.state) {
               await autopilot.putStatePromise(preDodgeState)
             }
-            if (preDodgeState !== 'route' && preDodgeTarget !== null) {
-              await autopilot.putTargetHeadingPromise(radiansToDegrees(preDodgeTarget))
+            // Only restore a heading target — wind/route states manage their own.
+            if (
+              apTargetType(preDodgeState) === 'heading' &&
+              preDodgeTarget !== null
+            ) {
+              await autopilot.putTargetHeadingPromise(
+                radiansToDegrees(preDodgeTarget)
+              )
             }
             dodgeActive = false
             preDodgeState = null
             preDodgeTarget = null
-            app.autopilotUpdate(apType, { actions: buildActions(apData.state, dodgeActive) })
+            app.autopilotUpdate(apType, {
+              actions: apActionsForState(apData.state, dodgeActive)
+            })
           } else if (value === 0) {
             // Enter dodge — save current state, no course change yet
             if (dodgeActive) {
@@ -367,18 +438,26 @@ export default function (app: any) {
             preDodgeState = apData.state
             preDodgeTarget = apData.target
             dodgeActive = true
-            if (apData.state === 'route') {
-              await autopilot.putStatePromise('auto')
+            const fallback = preDodgeState
+              ? apDodgeFallbackState(preDodgeState)
+              : null
+            if (fallback) {
+              await autopilot.putStatePromise(fallback)
             }
-            app.autopilotUpdate(apType, { actions: buildActions(apData.state, dodgeActive) })
+            app.autopilotUpdate(apType, {
+              actions: apActionsForState(apData.state, dodgeActive)
+            })
           } else {
             // Adjust dodge heading — decompose into ±10 and ±1 keystrokes
             if (!dodgeActive) {
               preDodgeState = apData.state
               preDodgeTarget = apData.target
               dodgeActive = true
-              if (apData.state === 'route') {
-                await autopilot.putStatePromise('auto')
+              const fallback = preDodgeState
+                ? apDodgeFallbackState(preDodgeState)
+                : null
+              if (fallback) {
+                await autopilot.putStatePromise(fallback)
               }
             }
             let degrees = Math.round(radiansToDegrees(value))
@@ -392,16 +471,18 @@ export default function (app: any) {
             for (let i = 0; i < ones; i++) {
               await autopilot.putAdjustHeadingPromise(sign * 1)
             }
-            app.autopilotUpdate(apType, { actions: buildActions(apData.state, dodgeActive) })
+            app.autopilotUpdate(apType, {
+              actions: apActionsForState(apData.state, dodgeActive)
+            })
           }
         },
         courseCurrentPoint: async (_deviceId: string): Promise<void> => {
           // Per API spec: engage the appropriate mode to steer to the active waypoint
-          return autopilot.putStatePromise('route')
+          return autopilot.putStatePromise(apRouteState())
         },
         courseNextPoint: async (_deviceId: string): Promise<void> => {
           const state = app.getSelfPath(state_path + '.value')
-          if (state !== 'route') {
+          if (state !== apRouteState()) {
             throw new Error('Autopilot not in route/track mode')
           }
           const result = autopilot.putAdvanceWaypoint(
@@ -493,7 +574,10 @@ export default function (app: any) {
               )
               apData.engaged = stateObj ? stateObj.engaged : false
               // Update available actions based on current state
-              apData.options.actions = buildActions(apData.state, dodgeActive)
+              apData.options.actions = apActionsForState(
+                apData.state,
+                dodgeActive
+              )
 
               app.autopilotUpdate(apType, {
                 state: apData.state,
@@ -506,10 +590,11 @@ export default function (app: any) {
             }
 
             // map n2k device target value to API.target
+            const currentTargetType = apTargetType(apData.state)
             if (
               pathValue.path ===
                 'steering.autopilot.target.windAngleApparent' &&
-              apData.state === 'wind'
+              currentTargetType === 'wind'
             ) {
               apData.target = pathValue.value
               app.autopilotUpdate(apType, { target: pathValue.value })
@@ -519,7 +604,7 @@ export default function (app: any) {
               (pathValue.path === 'steering.autopilot.target.headingTrue' ||
                 pathValue.path ===
                   'steering.autopilot.target.headingMagnetic') &&
-              apData.state !== 'wind'
+              currentTargetType !== 'wind'
             ) {
               apData.target = pathValue.value
               app.autopilotUpdate(apType, { target: pathValue.value })
