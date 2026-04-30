@@ -105,15 +105,16 @@ export default function (app: any): Autopilot {
     defaultEngagedState: () => 'nodrift',
 
     actionsForState: (state, isDodging) => {
-      const tackable =
-        state === 'wind' || state === 'nodrift' || state === 'heading'
+      // Tack matches putTack's state guard (wind/nodrift only).
+      const tackable = state === 'wind' || state === 'nodrift'
       return [
         { id: 'tack', name: 'Tack', available: tackable },
         { id: 'gybe', name: 'Gybe', available: tackable },
         {
           id: 'courseNextPoint',
           name: 'Advance Waypoint',
-          available: state === 'route'
+          // putAdvanceWaypoint is unimplemented for Simrad.
+          available: false
         },
         {
           id: 'courseCurrentPoint',

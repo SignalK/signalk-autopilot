@@ -244,6 +244,23 @@ module.exports = function (app) {
     }
   }
 
+  pilot.actionsForState = (state, isDodging) => {
+    const tackable = state === 'wind' || state === 'auto'
+    const engaged = state !== null && state !== 'standby'
+    return [
+      { id: 'tack', name: 'Tack', available: tackable },
+      { id: 'gybe', name: 'Gybe', available: tackable },
+      // Seatalk-1 putAdvanceWaypoint is unimplemented.
+      { id: 'courseNextPoint', name: 'Advance Waypoint', available: false },
+      {
+        id: 'courseCurrentPoint',
+        name: 'Steer to Waypoint',
+        available: engaged && state !== 'route'
+      },
+      { id: 'dodge', name: 'Dodge', available: engaged && !isDodging }
+    ]
+  }
+
   pilot.properties = () => {
     let defaultEvent = 'seatalkOut'
 

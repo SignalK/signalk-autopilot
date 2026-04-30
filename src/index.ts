@@ -69,7 +69,6 @@ const DEFAULT_TARGET_TYPES: { [k: string]: TargetType } = {
   route: 'route'
 }
 const DEFAULT_ROUTE_STATE = 'route'
-const DEFAULT_DODGE_FALLBACK_STATE = 'auto'
 
 const isValidState = (value: string) => {
   return apData.options.states.findIndex((i) => i.name === value) !== -1
@@ -334,8 +333,11 @@ export default function (app: any) {
   }
   const apDodgeFallbackState = (state: string): string | null => {
     if (autopilot?.dodgeFallbackState) return autopilot.dodgeFallbackState(state)
-    // Default: route mode can't dodge directly — switch to auto first.
-    return state === apRouteState() ? DEFAULT_DODGE_FALLBACK_STATE : null
+    // Default: route mode can't dodge directly — switch to the backend's
+    // own default engaged state instead of assuming a literal name.
+    if (state !== apRouteState()) return null
+    const fallback = apDefaultEngagedState()
+    return fallback && fallback !== apRouteState() ? fallback : null
   }
   // The "off" / disengaged state. Derived from the states-list metadata
   // (engaged: false) instead of hardcoding 'standby', so backends with a
@@ -434,9 +436,11 @@ export default function (app: any) {
             dodgeActive = false
             preDodgeState = null
             preDodgeTarget = null
-            app.autopilotUpdate(apType, {
-              actions: apActionsForState(apData.state, dodgeActive)
-            })
+            apData.options.actions = apActionsForState(
+              apData.state,
+              dodgeActive
+            )
+            app.autopilotUpdate(apType, { actions: apData.options.actions })
           } else if (value === 0) {
             // Enter dodge — save current state, no course change yet
             if (dodgeActive) {
@@ -451,9 +455,11 @@ export default function (app: any) {
             if (fallback) {
               await autopilot.putStatePromise(fallback)
             }
-            app.autopilotUpdate(apType, {
-              actions: apActionsForState(apData.state, dodgeActive)
-            })
+            apData.options.actions = apActionsForState(
+              apData.state,
+              dodgeActive
+            )
+            app.autopilotUpdate(apType, { actions: apData.options.actions })
           } else {
             // Adjust dodge heading — decompose into ±10 and ±1 keystrokes
             if (!dodgeActive) {
@@ -478,9 +484,11 @@ export default function (app: any) {
             for (let i = 0; i < ones; i++) {
               await autopilot.putAdjustHeadingPromise(sign * 1)
             }
-            app.autopilotUpdate(apType, {
-              actions: apActionsForState(apData.state, dodgeActive)
-            })
+            apData.options.actions = apActionsForState(
+              apData.state,
+              dodgeActive
+            )
+            app.autopilotUpdate(apType, { actions: apData.options.actions })
           }
         },
         courseCurrentPoint: async (_deviceId: string): Promise<void> => {
