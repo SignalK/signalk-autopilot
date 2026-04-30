@@ -337,6 +337,13 @@ export default function (app: any) {
     // Default: route mode can't dodge directly — switch to auto first.
     return state === apRouteState() ? DEFAULT_DODGE_FALLBACK_STATE : null
   }
+  // The "off" / disengaged state. Derived from the states-list metadata
+  // (engaged: false) instead of hardcoding 'standby', so backends with a
+  // different label (or future ones with multiple disengaged states) work.
+  const apDisengagedState = (): string => {
+    const disengaged = apData.options.states.find((s) => !s.engaged)
+    return disengaged?.name ?? 'standby'
+  }
 
   // Autopilot API - register with Autopilot API
   const registerProvider = () => {
@@ -396,7 +403,7 @@ export default function (app: any) {
           return autopilot.putStatePromise(engageState)
         },
         disengage: async (_deviceId) => {
-          return autopilot.putStatePromise('standby')
+          return autopilot.putStatePromise(apDisengagedState())
         },
         tack: async (direction, _deviceId) => {
           return autopilot.putTackPromise(direction)
@@ -584,7 +591,7 @@ export default function (app: any) {
                 engaged: apData.engaged,
                 actions: apData.options.actions
               })
-              if (apData.state != null && apData.state !== 'standby') {
+              if (apData.state != null && apData.engaged) {
                 lastState = apData.state
               }
             }
