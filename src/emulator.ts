@@ -259,8 +259,90 @@ export default function (app: any): Autopilot {
       })
     },
 
-    putTack: (_context: string, _path: string, _value: any, _cb: any) => {
-      return { message: 'Unsupported', ...FAILURE_RES }
+    putTack: (_context: string, _path: string, value: any, _cb: any) => {
+      const state = app.getSelfPath(state_path)
+
+      if (state !== 'wind' && state !== 'auto') {
+        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      }
+
+      // Simulate by reflecting the apparent wind target across 0 — emulates
+      // the boat coming through head-to-wind onto the opposite tack.
+      if (state === 'wind' && currentTarget !== undefined) {
+        currentTarget = -currentTarget
+        app.handleMessage(source, {
+          updates: [
+            {
+              values: [
+                {
+                  path: 'steering.autopilot.target.windAngleApparent',
+                  value: currentTarget
+                }
+              ]
+            }
+          ]
+        })
+      }
+
+      // Direction is informational for emulation; the math is symmetric.
+      void value
+      return SUCCESS_RES
+    },
+
+    putGybePromise: (value: string) => {
+      return new Promise((resolve, reject) => {
+        const res: any = pilot.putGybe(undefined, undefined, value, () => {})
+        if (res.statusCode === FAILURE_RES.statusCode) {
+          reject(res)
+        } else {
+          resolve()
+        }
+      })
+    },
+
+    putGybe: (_context: string, _path: string, value: any, _cb: any) => {
+      const state = app.getSelfPath(state_path)
+
+      if (state !== 'wind' && state !== 'auto') {
+        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      }
+
+      // Mirror of tack — boat passes through downwind instead of head-to-wind,
+      // but the target wind angle flips sign either way.
+      if (state === 'wind' && currentTarget !== undefined) {
+        currentTarget = -currentTarget
+        app.handleMessage(source, {
+          updates: [
+            {
+              values: [
+                {
+                  path: 'steering.autopilot.target.windAngleApparent',
+                  value: currentTarget
+                }
+              ]
+            }
+          ]
+        })
+      }
+
+      void value
+      return SUCCESS_RES
+    },
+
+    putAdvanceWaypointPromise: () => {
+      return new Promise((resolve, reject) => {
+        const res: any = pilot.putAdvanceWaypoint(
+          undefined,
+          undefined,
+          undefined,
+          () => {}
+        )
+        if (res.statusCode === FAILURE_RES.statusCode) {
+          reject(res)
+        } else {
+          resolve()
+        }
+      })
     },
 
     putAdvanceWaypoint: (
@@ -269,7 +351,15 @@ export default function (app: any): Autopilot {
       _value: any,
       _cb: any
     ) => {
-      return { message: 'Unsupported', ...FAILURE_RES }
+      const state = app.getSelfPath(state_path)
+
+      if (state !== 'route') {
+        return { message: 'Autopilot not in track mode', ...FAILURE_RES }
+      }
+
+      // Emulator has no route model — acknowledge so client flows that test
+      // the round-trip succeed.
+      return SUCCESS_RES
     },
 
     properties: () => {

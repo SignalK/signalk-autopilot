@@ -30,6 +30,7 @@ const target_wind = 'steering.autopilot.target.windAngleApparent'
 const state_path = 'steering.autopilot.state'
 const adjust_heading = 'steering.autopilot.actions.adjustHeading'
 const tack = 'steering.autopilot.actions.tack'
+const gybe = 'steering.autopilot.actions.gybe'
 const advance = 'steering.autopilot.actions.advanceWaypoint'
 
 export const types: { [key: string]: (app: any) => Autopilot } = {
@@ -98,6 +99,12 @@ export interface Autopilot {
     value: any,
     cb?: any
   ): ActionResult
+  putGybe(
+    context: string | undefined,
+    path: string | undefined,
+    value: any,
+    cb?: any
+  ): ActionResult
   putAdvanceWaypoint(
     context: string | undefined,
     path: string | undefined,
@@ -122,7 +129,8 @@ export interface Autopilot {
   putTargetWindPromise(value: number): Promise<void>
   putAdjustHeadingPromise(value: number): Promise<void>
   putTackPromise(value: string): Promise<void>
-  //putAdvanceWaypointPromise(value: any): Promise<void>
+  putGybePromise(value: string): Promise<void>
+  putAdvanceWaypointPromise(): Promise<void>
 }
 
 export default function (app: any) {
@@ -174,6 +182,8 @@ export default function (app: any) {
     )
 
     app.registerPutHandler('vessels.self', tack, autopilot.putTack)
+
+    app.registerPutHandler('vessels.self', gybe, autopilot.putGybe)
 
     app.registerPutHandler(
       'vessels.self',
@@ -295,12 +305,12 @@ export default function (app: any) {
           return apData.target as number
         },
         setTarget: async (value, _deviceId) => {
-          if (apData.mode === 'auto') {
+          if (apData.state === 'auto') {
             return autopilot.putTargetHeadingPromise(radiansToDegrees(value))
-          } else if (apData.mode === 'wind') {
+          } else if (apData.state === 'wind') {
             return autopilot.putTargetWindPromise(radiansToDegrees(value))
           } else {
-            throw new Error(`Unable to set target value! MODE = ${apData.mode}`)
+            throw new Error(`Unable to set target value! STATE = ${apData.state}`)
           }
         },
         adjustTarget: async (value, _deviceId) => {
@@ -317,8 +327,8 @@ export default function (app: any) {
         tack: async (direction, _deviceId) => {
           return autopilot.putTackPromise(direction)
         },
-        gybe: async (_direction, _deviceId) => {
-          throw new Error('Not implemented!')
+        gybe: async (direction, _deviceId) => {
+          return autopilot.putGybePromise(direction)
         },
         dodge: async (_direction, _deviceId) => {
           throw new Error('Not implemented!')
@@ -327,7 +337,7 @@ export default function (app: any) {
           throw new Error('Not implemented!')
         },
         courseNextPoint: async (_deviceId: string): Promise<void> => {
-          throw new Error('Not implemented!')
+          return autopilot.putAdvanceWaypointPromise()
         }
       }
       app.registerAutopilotProvider(provider, [apType])

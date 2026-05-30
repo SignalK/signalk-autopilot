@@ -475,6 +475,47 @@ export default function (app: any): Autopilot {
       }
     },
 
+    putGybePromise: (value: string) => {
+      return new Promise((resolve, reject) => {
+        const res: any = pilot.putGybe(undefined, undefined, value, () => {})
+        if (res.statusCode === FAILURE_RES.statusCode) {
+          reject(res)
+        } else {
+          resolve()
+        }
+      })
+    },
+
+    putGybe: (context: string, path: string, value: any, _cb: any) => {
+      const state = app.getSelfPath(state_path)
+
+      if (state !== 'wind' && state !== 'auto') {
+        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      } else {
+        // Raymarine has no distinct gybe keystroke — wind-mode AP infers
+        // tack vs gybe from apparent wind angle when it receives the combined
+        // ±1+±10 Seatalk1 keystroke. Emit the same Seatalk1 keystroke as tack.
+        sendN2k(tackTo(app, deviceid, { value: value }))
+        return SUCCESS_RES
+      }
+    },
+
+    putAdvanceWaypointPromise: () => {
+      return new Promise((resolve, reject) => {
+        const res: any = pilot.putAdvanceWaypoint(
+          undefined,
+          undefined,
+          undefined,
+          () => {}
+        )
+        if (res.statusCode === FAILURE_RES.statusCode) {
+          reject(res)
+        } else {
+          resolve()
+        }
+      })
+    },
+
     putAdvanceWaypoint: (
       _context: string,
       _path: string,
@@ -641,14 +682,7 @@ function changeHeadingByKey(app: any, deviceid: number, key: string) {
   //return [util.format(key_command, (new Date()).toISOString(), default_src, everyone_dst, keys_code[key])]
 }
 
-function advanceWaypoint(app: any, deviceid: number) {
-  /*
-  return [util.format(raymarine_ttw_Mode, (new Date()).toISOString(),
-    default_src, deviceid),
-  util.format(raymarine_ttw, (new Date()).toISOString(),
-    default_src, deviceid)]
-    */
-
+function advanceWaypoint(_app: any, deviceid: number) {
   const pgn = createNmeaGroupFunction(
     GroupFunction.Command,
     new PGN_65379_SeatalkPilotMode({

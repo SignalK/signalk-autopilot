@@ -293,6 +293,52 @@ export default function (app: any): Autopilot {
       }
     },
 
+    putGybePromise: (value: string) => {
+      return new Promise((resolve, reject) => {
+        const res: any = pilot.putGybe(undefined, undefined, value, () => {})
+        if (res.statusCode === FAILURE_RES.statusCode) {
+          reject(res)
+        } else {
+          resolve()
+        }
+      })
+    },
+
+    putGybe: (_context: string, _path: string, _value: any, _cb: any) => {
+      const state = app.getSelfPath(state_path)
+
+      if (state !== 'wind' && state !== 'auto') {
+        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      } else {
+        // Simnet has no separate gybe PGN; the AP infers tack vs gybe from
+        // wind angle when it receives the tack command in wind mode.
+        sendN2k([
+          new PGN_130850_SimnetCommandApTack({
+            address: pilot.id,
+            unknownA: 0,
+            unknownB: 0
+          })
+        ])
+        return SUCCESS_RES
+      }
+    },
+
+    putAdvanceWaypointPromise: () => {
+      return new Promise((resolve, reject) => {
+        const res: any = pilot.putAdvanceWaypoint(
+          undefined,
+          undefined,
+          undefined,
+          () => {}
+        )
+        if (res.statusCode === FAILURE_RES.statusCode) {
+          reject(res)
+        } else {
+          resolve()
+        }
+      })
+    },
+
     putAdvanceWaypoint: (
       _context: string,
       _path: string,
