@@ -16,6 +16,7 @@
 
 import util from 'util'
 import { Autopilot } from './index'
+import { toActionPromise } from './actionPromise'
 import {
   createNmeaGroupFunction,
   SeatalkPilotMode16,
@@ -282,25 +283,10 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putTargetHeadingPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res = pilot.putTargetHeading(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.state !== 'PENDING') {
-          reject(res)
-        }
-      })
-    },
+    putTargetHeadingPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putTargetHeading(undefined, undefined, value, cb)
+      ),
 
     putTargetHeading: (context: string, path: string, value: any, cb: any) => {
       const state = app.getSelfPath(state_path)
@@ -323,25 +309,8 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putStatePromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putState(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.state !== 'PENDING') {
-          reject(res)
-        }
-      })
-    },
+    putStatePromise: (value: string) =>
+      toActionPromise((cb) => pilot.putState(undefined, undefined, value, cb)),
 
     putState: (context: string, path: string, value: any, cb: any) => {
       if (!state_modes[value]) {
@@ -366,25 +335,10 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putTargetWindPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putTargetWind(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.state !== 'PENDING') {
-          reject(res)
-        }
-      })
-    },
+    putTargetWindPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putTargetWind(undefined, undefined, value, cb)
+      ),
 
     putTargetWind: (context: string, path: string, value: any, cb: any) => {
       const state = app.getSelfPath(state_path)
@@ -409,21 +363,10 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putAdjustHeadingPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putAdjustHeading(
-          undefined,
-          undefined,
-          value,
-          () => {}
-        )
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
+    putAdjustHeadingPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putAdjustHeading(undefined, undefined, value, cb)
+      ),
 
     putAdjustHeading: (context: string, path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
@@ -453,16 +396,8 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putTackPromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putTack(undefined, undefined, value, () => {})
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
+    putTackPromise: (value: string) =>
+      toActionPromise((cb) => pilot.putTack(undefined, undefined, value, cb)),
 
     putTack: (context: string, path: string, _value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
@@ -475,21 +410,10 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putAdvanceWaypointPromise: () => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putAdvanceWaypoint(
-          undefined,
-          undefined,
-          undefined,
-          () => {}
-        )
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
+    putAdvanceWaypointPromise: () =>
+      toActionPromise((cb) =>
+        pilot.putAdvanceWaypoint(undefined, undefined, undefined, cb)
+      ),
 
     putAdvanceWaypoint: (
       _context: string,

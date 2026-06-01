@@ -14,6 +14,7 @@
  */
 
 const util = require('util')
+const { toActionPromise } = require('./actionPromise')
 
 const state_path = 'steering.autopilot.state.value'
 
@@ -64,16 +65,10 @@ module.exports = function (app) {
     app.emit(outputEvent, psentence)
   }
 
-  pilot.putTargetHeadingPromise = (value) => {
-    return new Promise((resolve, reject) => {
-      const res = pilot.putTargetHeading(undefined, undefined, value)
-      if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(res)
-      } else {
-        resolve()
-      }
-    })
-  }
+  pilot.putTargetHeadingPromise = (value) =>
+    toActionPromise((cb) =>
+      pilot.putTargetHeading(undefined, undefined, value, cb)
+    )
 
   pilot.putTargetHeading = (context, path, value, _cb) => {
     var state = app.getSelfPath(state_path)
@@ -105,16 +100,8 @@ module.exports = function (app) {
     }
   }
 
-  pilot.putStatePromise = (value) => {
-    return new Promise((resolve, reject) => {
-      const res = pilot.putState(undefined, undefined, value)
-      if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(res)
-      } else {
-        resolve()
-      }
-    })
-  }
+  pilot.putStatePromise = (value) =>
+    toActionPromise((cb) => pilot.putState(undefined, undefined, value, cb))
 
   pilot.putState = (context, path, value, _cb) => {
     if (!state_commands[value]) {
@@ -126,16 +113,10 @@ module.exports = function (app) {
     }
   }
 
-  pilot.putTargetWindPromise = (value) => {
-    return new Promise((resolve, reject) => {
-      const res = pilot.putTargetWind(undefined, undefined, value)
-      if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(res)
-      } else {
-        resolve()
-      }
-    })
-  }
+  pilot.putTargetWindPromise = (value) =>
+    toActionPromise((cb) =>
+      pilot.putTargetWind(undefined, undefined, value, cb)
+    )
 
   pilot.putTargetWind = (context, path, value, _cb) => {
     var state = app.getSelfPath(state_path)
@@ -167,16 +148,10 @@ module.exports = function (app) {
     }
   }
 
-  pilot.putAdjustHeadingPromise = (value) => {
-    return new Promise((resolve, reject) => {
-      const res = pilot.putAdjustHeading(undefined, undefined, value)
-      if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(res)
-      } else {
-        resolve()
-      }
-    })
-  }
+  pilot.putAdjustHeadingPromise = (value) =>
+    toActionPromise((cb) =>
+      pilot.putAdjustHeading(undefined, undefined, value, cb)
+    )
 
   pilot.putAdjustHeading = (context, path, value, _cb) => {
     var state = app.getSelfPath(state_path)
@@ -209,16 +184,8 @@ module.exports = function (app) {
     }
   }
 
-  pilot.putTackPromise = (value) => {
-    return new Promise((resolve, reject) => {
-      const res = pilot.putTack(undefined, undefined, value)
-      if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(res)
-      } else {
-        resolve()
-      }
-    })
-  }
+  pilot.putTackPromise = (value) =>
+    toActionPromise((cb) => pilot.putTack(undefined, undefined, value, cb))
 
   pilot.putTack = (context, path, value, _cb) => {
     var state = app.getSelfPath(state_path)
@@ -231,16 +198,10 @@ module.exports = function (app) {
     }
   }
 
-  pilot.putAdvanceWaypointPromise = () => {
-    return new Promise((resolve, reject) => {
-      const res = pilot.putAdvanceWaypoint(undefined, undefined, undefined)
-      if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(res)
-      } else {
-        resolve()
-      }
-    })
-  }
+  pilot.putAdvanceWaypointPromise = () =>
+    toActionPromise((cb) =>
+      pilot.putAdvanceWaypoint(undefined, undefined, undefined, cb)
+    )
 
   pilot.putAdvanceWaypoint = (_context, _path, _value, _cb) => {
     var state = app.getSelfPath(state_path)
