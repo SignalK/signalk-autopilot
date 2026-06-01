@@ -25,8 +25,7 @@ import {
   PGN_130850_SimnetCommandApTack,
   PGN_130850_SimnetCommandApWind,
   PGN_130850_SimnetCommandApChangeCourse,
-  SimnetDirection,
-  SimnetApCommandType
+  SimnetDirection
   //PGN_130850_SimnetCommandApStandby,
   //PGN_130850_SimnetCommandApFollowUp,
 } from '@canboat/ts-pgns'
@@ -164,32 +163,32 @@ export default function (app: any): Autopilot {
             case 'auto':
               pgn = new PGN_130850_SimnetCommandApNodrift({
                 address: pilot.id,
-                unknown: 0
+                reserved5: 0
               })
               break
             case 'route':
               pgn = new PGN_130850_SimnetCommandApNav({
                 address: pilot.id,
-                unknown: 0
+                reserved5: 0
               })
               break
             case 'heading':
               pgn = new PGN_130850_SimnetCommandApHeading({
                 address: pilot.id,
-                unknown: 0
+                reserved5: 0
               })
               break
             case 'wind':
               pgn = new PGN_130850_SimnetCommandApWind({
                 address: pilot.id,
-                unknown: 0
+                reserved5: 0
               })
               break
             default:
             case 'standby':
               pgn = new PGN_130850_SimnetCommandApStandby({
                 address: pilot.id,
-                unknown: 0
+                reserved5: 0
               })
               break
           }
@@ -253,8 +252,7 @@ export default function (app: any): Autopilot {
       } else {
         const pgn = new PGN_130850_SimnetCommandApChangeCourse({
           address: pilot.id,
-          commandType: SimnetApCommandType.ApCommand,
-          unknown: 0,
+          reserved5: 0,
           direction:
             value > 0 ? SimnetDirection.Starboard : SimnetDirection.Port,
           angle: degsToRad(Math.abs(value))

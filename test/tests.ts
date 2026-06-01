@@ -100,7 +100,7 @@ Object.entries(types).forEach(([name, type]) => {
                 commandType: 'AP Command',
                 event: 'No Drift mode',
                 address: 3,
-                unknown: 0
+                reserved5: 0
               }
             },
             generates: [
@@ -337,7 +337,7 @@ Object.entries(types).forEach(([name, type]) => {
                 event: 'Change course',
                 address: 3,
                 commandType: 'AP Command',
-                unknown: 0,
+                reserved5: 0,
                 direction: 'Starboard',
                 angle: 0.017453292519943295
               }
