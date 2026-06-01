@@ -308,8 +308,12 @@ export default function (app: any): Autopilot {
       if (state !== 'wind' && state !== 'auto') {
         return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
       } else {
-        // Simnet has no separate gybe PGN; the AP infers tack vs gybe from
-        // wind angle when it receives the tack command in wind mode.
+        // SUSPECT: this sends the tack PGN. Canboat documents no separate
+        // gybe command for Simrad/Simnet (only PGN_130850_SimnetCommandApTack
+        // exists in the AP-command family). Tack and gybe are different
+        // maneuvers requiring opposite rudder directions; we haven't verified
+        // the AP actually infers gybe from this command. Until a real Simrad
+        // MFD gybe can be captured, treat this as unproven.
         sendN2k([
           new PGN_130850_SimnetCommandApTack({
             address: pilot.id,

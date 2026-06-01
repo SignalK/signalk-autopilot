@@ -464,13 +464,13 @@ export default function (app: any): Autopilot {
       })
     },
 
-    putTack: (context: string, path: string, value: any, _cb: any) => {
+    putTack: (context: string, path: string, _value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
       if (state !== 'wind' && state !== 'auto') {
         return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
       } else {
-        sendN2k(tackTo(app, deviceid, { value: value }))
+        sendN2k([tackCommand(deviceid)])
         return SUCCESS_RES
       }
     },
@@ -486,16 +486,18 @@ export default function (app: any): Autopilot {
       })
     },
 
-    putGybe: (context: string, path: string, value: any, _cb: any) => {
+    putGybe: (context: string, path: string, _value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
       if (state !== 'wind' && state !== 'auto') {
         return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
       } else {
-        // Raymarine has no distinct gybe keystroke — wind-mode AP infers
-        // tack vs gybe from apparent wind angle when it receives the combined
-        // ±1+±10 Seatalk1 keystroke. Emit the same Seatalk1 keystroke as tack.
-        sendN2k(tackTo(app, deviceid, { value: value }))
+        // SUSPECT: this sends the tack command, which may not be correct for
+        // a gybe — tack and gybe are different maneuvers requiring opposite
+        // rudder directions. We have not yet captured what the Axiom emits
+        // when offering a gybe (needs a real downwind sailing condition to
+        // reproduce). Until verified, treat this implementation as unproven.
+        sendN2k([tackCommand(deviceid)])
         return SUCCESS_RES
       }
     },
@@ -640,29 +642,20 @@ export default function (app: any): Autopilot {
   return pilot
 }
 
-function tackTo(app: any, deviceid: number, command_json: any) {
-  const tackTo = command_json['value']
-  app.debug('tackTo: ' + tackTo)
-  let key
-  if (tackTo === 'port') {
-    key = '-1-10'
-  } else if (tackTo === 'starboard') {
-    key = '+1+10'
-  } else {
-    app.debug('tackTo: unknown ' + tackTo)
-    return []
-  }
-
-  return [
-    new PGN_126720_Seatalk1Keystroke(
-      {
-        device: 33,
-        key: st_keys[key].key,
-        keyinverted: st_keys[key].inverted
-      },
-      deviceid
-    )
-  ]
+function tackCommand(deviceid: number) {
+  // Reverse-engineered from Axiom MFD: PGN 126208 Group Function Command on
+  // PGN 65379 with pilotMode = 0xFFFF (leave unchanged) and subMode = 4 tells
+  // the EV-1 to execute the maneuver appropriate to its current mode — tack
+  // (or gybe) in wind mode.
+  return createNmeaGroupFunction(
+    GroupFunction.Command,
+    new PGN_65379_SeatalkPilotMode({
+      pilotMode: 0xffff,
+      subMode: 4
+    }),
+    { priority: Priority.LeaveUnchanged },
+    deviceid
+  )
 }
 
 function changeHeadingByKey(app: any, deviceid: number, key: string) {
