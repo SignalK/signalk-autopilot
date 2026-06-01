@@ -475,33 +475,6 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putGybePromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putGybe(undefined, undefined, value, () => {})
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
-
-    putGybe: (context: string, path: string, _value: any, _cb: any) => {
-      const state = app.getSelfPath(state_path)
-
-      if (state !== 'wind' && state !== 'auto') {
-        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
-      } else {
-        // SUSPECT: this sends the tack command, which may not be correct for
-        // a gybe — tack and gybe are different maneuvers requiring opposite
-        // rudder directions. We have not yet captured what the Axiom emits
-        // when offering a gybe (needs a real downwind sailing condition to
-        // reproduce). Until verified, treat this implementation as unproven.
-        sendN2k([tackCommand(deviceid)])
-        return SUCCESS_RES
-      }
-    },
-
     putAdvanceWaypointPromise: () => {
       return new Promise((resolve, reject) => {
         const res: any = pilot.putAdvanceWaypoint(
@@ -645,8 +618,7 @@ export default function (app: any): Autopilot {
 function tackCommand(deviceid: number) {
   // Reverse-engineered from Axiom MFD: PGN 126208 Group Function Command on
   // PGN 65379 with pilotMode = 0xFFFF (leave unchanged) and subMode = 4 tells
-  // the EV-1 to execute the maneuver appropriate to its current mode — tack
-  // (or gybe) in wind mode.
+  // the EV-1 to execute a tack from the current wind angle.
   return createNmeaGroupFunction(
     GroupFunction.Command,
     new PGN_65379_SeatalkPilotMode({

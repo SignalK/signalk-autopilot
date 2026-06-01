@@ -289,46 +289,6 @@ export default function (app: any): Autopilot {
       return SUCCESS_RES
     },
 
-    putGybePromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putGybe(undefined, undefined, value, () => {})
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
-
-    putGybe: (_context: string, _path: string, value: any, _cb: any) => {
-      const state = app.getSelfPath(state_path)
-
-      if (state !== 'wind' && state !== 'auto') {
-        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
-      }
-
-      // Mirror of tack — boat passes through downwind instead of head-to-wind,
-      // but the target wind angle flips sign either way.
-      if (state === 'wind' && currentTarget !== undefined) {
-        currentTarget = -currentTarget
-        app.handleMessage(source, {
-          updates: [
-            {
-              values: [
-                {
-                  path: 'steering.autopilot.target.windAngleApparent',
-                  value: currentTarget
-                }
-              ]
-            }
-          ]
-        })
-      }
-
-      void value
-      return SUCCESS_RES
-    },
-
     putAdvanceWaypointPromise: () => {
       return new Promise((resolve, reject) => {
         const res: any = pilot.putAdvanceWaypoint(

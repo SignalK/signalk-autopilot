@@ -232,28 +232,6 @@ module.exports = function (app) {
     }
   }
 
-  pilot.putGybePromise = (value) => {
-    return new Promise((resolve, reject) => {
-      const res = pilot.putGybe(undefined, undefined, value)
-      if (res.statusCode === FAILURE_RES.statusCode) {
-        reject(res)
-      } else {
-        resolve()
-      }
-    })
-  }
-
-  pilot.putGybe = (context, path, value, _cb) => {
-    var state = app.getSelfPath(state_path)
-
-    if (state !== 'wind') {
-      return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
-    } else {
-      sendN2k(tackTo(app, deviceid, { value: value }))
-      return SUCCESS_RES
-    }
-  }
-
   pilot.putAdvanceWaypointPromise = () => {
     return new Promise((resolve, reject) => {
       const res = pilot.putAdvanceWaypoint(undefined, undefined, undefined)

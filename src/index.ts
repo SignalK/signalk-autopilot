@@ -30,7 +30,6 @@ const target_wind = 'steering.autopilot.target.windAngleApparent'
 const state_path = 'steering.autopilot.state'
 const adjust_heading = 'steering.autopilot.actions.adjustHeading'
 const tack = 'steering.autopilot.actions.tack'
-const gybe = 'steering.autopilot.actions.gybe'
 const advance = 'steering.autopilot.actions.advanceWaypoint'
 
 export const types: { [key: string]: (app: any) => Autopilot } = {
@@ -99,12 +98,6 @@ export interface Autopilot {
     value: any,
     cb?: any
   ): ActionResult
-  putGybe(
-    context: string | undefined,
-    path: string | undefined,
-    value: any,
-    cb?: any
-  ): ActionResult
   putAdvanceWaypoint(
     context: string | undefined,
     path: string | undefined,
@@ -129,7 +122,6 @@ export interface Autopilot {
   putTargetWindPromise(value: number): Promise<void>
   putAdjustHeadingPromise(value: number): Promise<void>
   putTackPromise(value: string): Promise<void>
-  putGybePromise(value: string): Promise<void>
   putAdvanceWaypointPromise(): Promise<void>
 }
 
@@ -182,8 +174,6 @@ export default function (app: any) {
     )
 
     app.registerPutHandler('vessels.self', tack, autopilot.putTack)
-
-    app.registerPutHandler('vessels.self', gybe, autopilot.putGybe)
 
     app.registerPutHandler(
       'vessels.self',
@@ -327,8 +317,8 @@ export default function (app: any) {
         tack: async (direction, _deviceId) => {
           return autopilot.putTackPromise(direction)
         },
-        gybe: async (direction, _deviceId) => {
-          return autopilot.putGybePromise(direction)
+        gybe: async (_direction, _deviceId) => {
+          throw new Error('Not implemented!')
         },
         dodge: async (_direction, _deviceId) => {
           throw new Error('Not implemented!')

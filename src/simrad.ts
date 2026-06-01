@@ -291,40 +291,6 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putGybePromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putGybe(undefined, undefined, value, () => {})
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
-
-    putGybe: (_context: string, _path: string, _value: any, _cb: any) => {
-      const state = app.getSelfPath(state_path)
-
-      if (state !== 'wind' && state !== 'auto') {
-        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
-      } else {
-        // SUSPECT: this sends the tack PGN. Canboat documents no separate
-        // gybe command for Simrad/Simnet (only PGN_130850_SimnetCommandApTack
-        // exists in the AP-command family). Tack and gybe are different
-        // maneuvers requiring opposite rudder directions; we haven't verified
-        // the AP actually infers gybe from this command. Until a real Simrad
-        // MFD gybe can be captured, treat this as unproven.
-        sendN2k([
-          new PGN_130850_SimnetCommandApTack({
-            address: pilot.id,
-            unknownA: 0,
-            unknownB: 0
-          })
-        ])
-        return SUCCESS_RES
-      }
-    },
-
     putAdvanceWaypointPromise: () => {
       return new Promise((resolve, reject) => {
         const res: any = pilot.putAdvanceWaypoint(
