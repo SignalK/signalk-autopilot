@@ -38,6 +38,45 @@ describe('test emulator autopilot', function () {
       autopilot.stop()
     }
   })
+
+  it('uses magnetic route bearing with XTE correction in route mode', () => {
+    const app = new TestApp([], {
+      'navigation.course.calcValues.bearingTrackMagnetic.value': Math.PI / 2,
+      'navigation.course.calcValues.crossTrackError.value': 100
+    })
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({ routeXteLookahead: 100, routeMaxXteCorrection: 60 })
+
+    try {
+      const res = autopilot.putState(undefined, undefined, 'route', () => {})
+
+      expect(res.statusCode).to.equal(200)
+      expect(app.getSelfPath('steering.autopilot.mode.value')).to.equal('route')
+      expect(
+        app.getSelfPath('steering.autopilot.target.headingMagnetic.value')
+      ).to.be.closeTo(Math.PI / 4, 1e-12)
+    } finally {
+      autopilot.stop()
+    }
+  })
+
+  it('requires magnetic route bearing in route mode', () => {
+    const app = new TestApp([], {
+      'navigation.headingMagnetic.value': Math.PI / 2,
+      'navigation.course.calcValues.bearingTrackTrue.value': Math.PI / 2
+    })
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({})
+
+    try {
+      const res = autopilot.putState(undefined, undefined, 'route', () => {})
+
+      expect(res.statusCode).to.equal(400)
+      expect(res.message).to.equal('No magnetic route bearing available')
+    } finally {
+      autopilot.stop()
+    }
+  })
 })
 
 Object.entries(types).forEach(([name, type]) => {

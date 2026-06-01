@@ -18,6 +18,11 @@ import { Autopilot } from './index'
 import { ActionResult } from '@signalk/server-api'
 
 const state_path = 'steering.autopilot.state.value'
+const routeTrackMagneticPath =
+  'navigation.course.calcValues.bearingTrackMagnetic.value'
+const routeXtePath = 'navigation.course.calcValues.crossTrackError.value'
+const defaultRouteXteLookahead = 100
+const defaultRouteMaxXteCorrection = 60
 
 const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 } as ActionResult
 const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 } as ActionResult
@@ -28,10 +33,19 @@ export default function (app: any): Autopilot {
   let currentState = 'standby'
   let currentTarget: any = undefined
   let stateInterval: any
+  let routeXteLookahead = defaultRouteXteLookahead
+  let routeMaxXteCorrection = degsToRad(defaultRouteMaxXteCorrection)
 
   const pilot: Autopilot = {
     id: 10,
-    start: (_props) => {
+    start: (props) => {
+      routeXteLookahead =
+        positiveFinite(props?.routeXteLookahead) || defaultRouteXteLookahead
+      routeMaxXteCorrection = degsToRad(
+        positiveFinite(props?.routeMaxXteCorrection) ||
+          defaultRouteMaxXteCorrection
+      )
+
       stateInterval = setInterval(() => {
         const delta = {
           updates: [
@@ -42,6 +56,9 @@ export default function (app: any): Autopilot {
               ]
             }
           ]
+        }
+        if (currentState === 'route') {
+          currentTarget = getRouteTargetHeading()
         }
         if ((currentState === 'auto' || currentState === 'route') && currentTarget !== undefined) {
           delta.updates[0].values.push({
@@ -138,7 +155,7 @@ export default function (app: any): Autopilot {
         ]
       }
 
-      if (value === 'auto' || value === 'route') {
+      if (value === 'auto') {
         const heading = app.getSelfPath('navigation.headingMagnetic.value')
         if (heading !== undefined) {
           currentTarget = heading
@@ -149,6 +166,20 @@ export default function (app: any): Autopilot {
         } else {
           return {
             message: 'No magnetic heading available',
+            ...FAILURE_RES
+          }
+        }
+      } else if (value === 'route') {
+        const heading = getRouteTargetHeading()
+        if (heading !== undefined) {
+          currentTarget = heading
+          delta.updates[0].values.push({
+            path: 'steering.autopilot.target.headingMagnetic',
+            value: heading
+          })
+        } else {
+          return {
+            message: 'No magnetic route bearing available',
             ...FAILURE_RES
           }
         }
@@ -308,13 +339,59 @@ export default function (app: any): Autopilot {
     },
 
     properties: () => {
-      return {}
+      return {
+        routeXteLookahead: {
+          type: 'number',
+          title: 'Emulator route XTE lookahead distance',
+          description:
+            'Cross-track error distance, in meters, that produces about half the maximum route correction.',
+          default: defaultRouteXteLookahead
+        },
+        routeMaxXteCorrection: {
+          type: 'number',
+          title: 'Emulator route maximum XTE correction',
+          description:
+            'Maximum heading correction applied in route mode, in degrees.',
+          default: defaultRouteMaxXteCorrection
+        }
+      }
     }
   }
 
   return pilot
+
+  function getRouteTargetHeading() {
+    const trackHeadingMagnetic = app.getSelfPath(routeTrackMagneticPath)
+    if (!Number.isFinite(trackHeadingMagnetic)) {
+      return undefined
+    }
+
+    const xte = app.getSelfPath(routeXtePath)
+    if (!Number.isFinite(xte)) {
+      return compassAngle(trackHeadingMagnetic)
+    }
+
+    const correction = clamp(
+      -Math.atan(xte / routeXteLookahead),
+      -routeMaxXteCorrection,
+      routeMaxXteCorrection
+    )
+    return compassAngle(trackHeadingMagnetic + correction)
+  }
 }
 
 function degsToRad(degrees: number) {
   return degrees * (Math.PI / 180.0)
+}
+
+function compassAngle(angle: number) {
+  return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function positiveFinite(value: any) {
+  return Number.isFinite(value) && value > 0 ? value : undefined
 }
