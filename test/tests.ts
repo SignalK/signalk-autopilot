@@ -18,6 +18,28 @@ import { expect } from 'chai'
 import { types, Autopilot } from '../dist/index'
 import { TestApp, ExpectedEvent } from './utils'
 
+describe('test emulator autopilot', function () {
+  it('exposes v2 modes and publishes mode with state', () => {
+    const app = new TestApp([], {
+      'navigation.headingMagnetic.value': Math.PI / 2
+    })
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({})
+
+    try {
+      expect(autopilot.modes?.()).to.deep.equal(['auto', 'wind', 'route'])
+
+      const res = autopilot.putState(undefined, undefined, 'auto', () => {})
+
+      expect(res.statusCode).to.equal(200)
+      expect(app.getSelfPath('steering.autopilot.state.value')).to.equal('auto')
+      expect(app.getSelfPath('steering.autopilot.mode.value')).to.equal('auto')
+    } finally {
+      autopilot.stop()
+    }
+  })
+})
+
 Object.entries(types).forEach(([name, type]) => {
   if (name === 'emulator') {
     return

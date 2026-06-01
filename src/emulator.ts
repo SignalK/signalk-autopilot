@@ -37,7 +37,8 @@ export default function (app: any): Autopilot {
           updates: [
             {
               values: [
-                { path: 'steering.autopilot.state', value: currentState }
+                { path: 'steering.autopilot.state', value: currentState },
+                { path: 'steering.autopilot.mode', value: currentState }
               ]
             }
           ]
@@ -68,6 +69,10 @@ export default function (app: any): Autopilot {
         { name: 'wind', engaged: true },
         { name: 'route', engaged: true }
       ]
+    },
+
+    modes: () => {
+      return ['auto', 'wind', 'route']
     },
 
     putTargetHeadingPromise: (value: number) => {
@@ -125,7 +130,10 @@ export default function (app: any): Autopilot {
       const delta = {
         updates: [
           {
-            values: [{ path: 'steering.autopilot.state', value }]
+            values: [
+              { path: 'steering.autopilot.state', value },
+              { path: 'steering.autopilot.mode', value }
+            ]
           }
         ]
       }
