@@ -40,7 +40,7 @@
     "eslint-plugin-prettier": "^5.5.3",
     "html-minimizer-webpack-plugin": "^4.4.0",
     "mocha": "^11.7.1",
-    "prettier-standard": "^16.4.1",
+    "prettier": "^3.8.2",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
