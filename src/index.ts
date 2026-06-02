@@ -122,7 +122,7 @@ export interface Autopilot {
   putTargetWindPromise(value: number): Promise<void>
   putAdjustHeadingPromise(value: number): Promise<void>
   putTackPromise(value: string): Promise<void>
-  //putAdvanceWaypointPromise(value: any): Promise<void>
+  putAdvanceWaypointPromise(): Promise<void>
 }
 
 export default function (app: any) {
@@ -295,12 +295,14 @@ export default function (app: any) {
           return apData.target as number
         },
         setTarget: async (value, _deviceId) => {
-          if (apData.mode === 'auto') {
+          if (apData.state === 'auto') {
             return autopilot.putTargetHeadingPromise(radiansToDegrees(value))
-          } else if (apData.mode === 'wind') {
+          } else if (apData.state === 'wind') {
             return autopilot.putTargetWindPromise(radiansToDegrees(value))
           } else {
-            throw new Error(`Unable to set target value! MODE = ${apData.mode}`)
+            throw new Error(
+              `Unable to set target value! STATE = ${apData.state}`
+            )
           }
         },
         adjustTarget: async (value, _deviceId) => {
@@ -327,7 +329,7 @@ export default function (app: any) {
           throw new Error('Not implemented!')
         },
         courseNextPoint: async (_deviceId: string): Promise<void> => {
-          throw new Error('Not implemented!')
+          return autopilot.putAdvanceWaypointPromise()
         }
       }
       app.registerAutopilotProvider(provider, [apType])

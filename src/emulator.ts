@@ -15,6 +15,7 @@
  */
 
 import { Autopilot } from './index'
+import { toActionPromise } from './actionPromise'
 import { ActionResult } from '@signalk/server-api'
 
 const state_path = 'steering.autopilot.state.value'
@@ -69,25 +70,10 @@ export default function (app: any): Autopilot {
       ]
     },
 
-    putTargetHeadingPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res = pilot.putTargetHeading(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.state !== 'COMPLETED') {
-          reject(res)
-        }
-      })
-    },
+    putTargetHeadingPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putTargetHeading(undefined, undefined, value, cb)
+      ),
 
     putTargetHeading: (
       _context: string,
@@ -98,27 +84,8 @@ export default function (app: any): Autopilot {
       return { message: 'Unsupported', ...FAILURE_RES }
     },
 
-    putStatePromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putState(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.statusCode !== 200) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
+    putStatePromise: (value: string) =>
+      toActionPromise((cb) => pilot.putState(undefined, undefined, value, cb)),
 
     putState: (context: string, path: string, value: any, _cb: any) => {
       const delta = {
@@ -152,45 +119,19 @@ export default function (app: any): Autopilot {
       return SUCCESS_RES
     },
 
-    putTargetWindPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putTargetWind(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.state !== 'PENDING') {
-          reject(res)
-        }
-      })
-    },
+    putTargetWindPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putTargetWind(undefined, undefined, value, cb)
+      ),
 
     putTargetWind: (_context: string, _path: string, _value: any, _cb: any) => {
       return { message: 'Unsupported', ...FAILURE_RES }
     },
 
-    putAdjustHeadingPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putAdjustHeading(
-          undefined,
-          undefined,
-          value,
-          () => {}
-        )
-        if (res.statusCode !== 200) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
+    putAdjustHeadingPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putAdjustHeading(undefined, undefined, value, cb)
+      ),
 
     putAdjustHeading: (context: string, path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
@@ -248,20 +189,43 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putTackPromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putTack(undefined, undefined, value, () => {})
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
+    putTackPromise: (value: string) =>
+      toActionPromise((cb) => pilot.putTack(undefined, undefined, value, cb)),
+
+    putTack: (_context: string, _path: string, value: any, _cb: any) => {
+      const state = app.getSelfPath(state_path)
+
+      if (state !== 'wind' && state !== 'auto') {
+        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      }
+
+      // Simulate by reflecting the apparent wind target across 0 — emulates
+      // the boat coming through head-to-wind onto the opposite tack.
+      if (state === 'wind' && currentTarget !== undefined) {
+        currentTarget = -currentTarget
+        app.handleMessage(source, {
+          updates: [
+            {
+              values: [
+                {
+                  path: 'steering.autopilot.target.windAngleApparent',
+                  value: currentTarget
+                }
+              ]
+            }
+          ]
+        })
+      }
+
+      // Direction is informational for emulation; the math is symmetric.
+      void value
+      return SUCCESS_RES
     },
 
-    putTack: (_context: string, _path: string, _value: any, _cb: any) => {
-      return { message: 'Unsupported', ...FAILURE_RES }
-    },
+    putAdvanceWaypointPromise: () =>
+      toActionPromise((cb) =>
+        pilot.putAdvanceWaypoint(undefined, undefined, undefined, cb)
+      ),
 
     putAdvanceWaypoint: (
       _context: string,
@@ -269,7 +233,15 @@ export default function (app: any): Autopilot {
       _value: any,
       _cb: any
     ) => {
-      return { message: 'Unsupported', ...FAILURE_RES }
+      const state = app.getSelfPath(state_path)
+
+      if (state !== 'route') {
+        return { message: 'Autopilot not in track mode', ...FAILURE_RES }
+      }
+
+      // Emulator has no route model — acknowledge so client flows that test
+      // the round-trip succeed.
+      return SUCCESS_RES
     },
 
     properties: () => {

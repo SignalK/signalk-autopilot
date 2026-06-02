@@ -16,6 +16,7 @@
 
 import util from 'util'
 import { Autopilot } from './index'
+import { toActionPromise } from './actionPromise'
 import {
   createNmeaGroupFunction,
   SeatalkPilotMode16,
@@ -282,25 +283,10 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putTargetHeadingPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res = pilot.putTargetHeading(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.state !== 'PENDING') {
-          reject(res)
-        }
-      })
-    },
+    putTargetHeadingPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putTargetHeading(undefined, undefined, value, cb)
+      ),
 
     putTargetHeading: (context: string, path: string, value: any, cb: any) => {
       const state = app.getSelfPath(state_path)
@@ -323,25 +309,8 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putStatePromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putState(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.state !== 'PENDING') {
-          reject(res)
-        }
-      })
-    },
+    putStatePromise: (value: string) =>
+      toActionPromise((cb) => pilot.putState(undefined, undefined, value, cb)),
 
     putState: (context: string, path: string, value: any, cb: any) => {
       if (!state_modes[value]) {
@@ -366,25 +335,10 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putTargetWindPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putTargetWind(
-          undefined,
-          undefined,
-          value,
-          (res: any) => {
-            if (res.statusCode != 200) {
-              reject(res)
-            } else {
-              resolve()
-            }
-          }
-        )
-        if (res.state !== 'PENDING') {
-          reject(res)
-        }
-      })
-    },
+    putTargetWindPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putTargetWind(undefined, undefined, value, cb)
+      ),
 
     putTargetWind: (context: string, path: string, value: any, cb: any) => {
       const state = app.getSelfPath(state_path)
@@ -409,21 +363,10 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putAdjustHeadingPromise: (value: number) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putAdjustHeading(
-          undefined,
-          undefined,
-          value,
-          () => {}
-        )
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
+    putAdjustHeadingPromise: (value: number) =>
+      toActionPromise((cb) =>
+        pilot.putAdjustHeading(undefined, undefined, value, cb)
+      ),
 
     putAdjustHeading: (context: string, path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
@@ -453,27 +396,24 @@ export default function (app: any): Autopilot {
       }
     },
 
-    putTackPromise: (value: string) => {
-      return new Promise((resolve, reject) => {
-        const res: any = pilot.putTack(undefined, undefined, value, () => {})
-        if (res.statusCode === FAILURE_RES.statusCode) {
-          reject(res)
-        } else {
-          resolve()
-        }
-      })
-    },
+    putTackPromise: (value: string) =>
+      toActionPromise((cb) => pilot.putTack(undefined, undefined, value, cb)),
 
-    putTack: (context: string, path: string, value: any, _cb: any) => {
+    putTack: (_context: string, _path: string, _value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
       if (state !== 'wind' && state !== 'auto') {
         return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
       } else {
-        sendN2k(tackTo(app, deviceid, { value: value }))
+        sendN2k([tackCommand(deviceid)])
         return SUCCESS_RES
       }
     },
+
+    putAdvanceWaypointPromise: () =>
+      toActionPromise((cb) =>
+        pilot.putAdvanceWaypoint(undefined, undefined, undefined, cb)
+      ),
 
     putAdvanceWaypoint: (
       _context: string,
@@ -606,29 +546,19 @@ export default function (app: any): Autopilot {
   return pilot
 }
 
-function tackTo(app: any, deviceid: number, command_json: any) {
-  const tackTo = command_json['value']
-  app.debug('tackTo: ' + tackTo)
-  let key
-  if (tackTo === 'port') {
-    key = '-1-10'
-  } else if (tackTo === 'starboard') {
-    key = '+1+10'
-  } else {
-    app.debug('tackTo: unknown ' + tackTo)
-    return []
-  }
-
-  return [
-    new PGN_126720_Seatalk1Keystroke(
-      {
-        device: 33,
-        key: st_keys[key].key,
-        keyinverted: st_keys[key].inverted
-      },
-      deviceid
-    )
-  ]
+function tackCommand(deviceid: number) {
+  // Reverse-engineered from Axiom MFD: PGN 126208 Group Function Command on
+  // PGN 65379 with pilotMode = 0xFFFF (leave unchanged) and subMode = 4 tells
+  // the EV-1 to execute a tack from the current wind angle.
+  return createNmeaGroupFunction(
+    GroupFunction.Command,
+    new PGN_65379_SeatalkPilotMode({
+      pilotMode: 0xffff,
+      subMode: 4
+    }),
+    { priority: Priority.LeaveUnchanged },
+    deviceid
+  )
 }
 
 function changeHeadingByKey(app: any, deviceid: number, key: string) {
@@ -648,14 +578,7 @@ function changeHeadingByKey(app: any, deviceid: number, key: string) {
   //return [util.format(key_command, (new Date()).toISOString(), default_src, everyone_dst, keys_code[key])]
 }
 
-function advanceWaypoint(app: any, deviceid: number) {
-  /*
-  return [util.format(raymarine_ttw_Mode, (new Date()).toISOString(),
-    default_src, deviceid),
-  util.format(raymarine_ttw, (new Date()).toISOString(),
-    default_src, deviceid)]
-    */
-
+function advanceWaypoint(_app: any, deviceid: number) {
   const pgn = createNmeaGroupFunction(
     GroupFunction.Command,
     new PGN_65379_SeatalkPilotMode({

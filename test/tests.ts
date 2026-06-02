@@ -82,7 +82,35 @@ Object.entries(types).forEach(([name, type]) => {
             ]
           }
         ],
-        simrad: []
+        simrad: [
+          {
+            event: 'nmea2000JsonOut',
+            value: {
+              description: undefined,
+              pgn: 130850,
+              prio: 2,
+              dst: 255,
+              input: undefined,
+              src: undefined,
+              timestamp: undefined,
+              fields: {
+                manufacturerCode: 'Simrad',
+                industryCode: 'Marine Industry',
+                proprietaryId: 'Autopilot',
+                commandType: 'AP Command',
+                event: 'No Drift mode',
+                address: 3,
+                reserved5: 0
+              }
+            },
+            generates: [
+              {
+                path: 'steering.autopilot.state',
+                value: 'auto'
+              }
+            ]
+          }
+        ]
       }
 
       if (!expected[name]) {
@@ -291,7 +319,31 @@ Object.entries(types).forEach(([name, type]) => {
             }
           }
         ],
-        simrad: [],
+        simrad: [
+          {
+            event: 'nmea2000JsonOut',
+            value: {
+              description: undefined,
+              pgn: 130850,
+              prio: 2,
+              dst: 255,
+              input: undefined,
+              src: undefined,
+              timestamp: undefined,
+              fields: {
+                manufacturerCode: 'Simrad',
+                industryCode: 'Marine Industry',
+                proprietaryId: 'Autopilot',
+                event: 'Change course',
+                address: 3,
+                commandType: 'AP Command',
+                reserved5: 0,
+                direction: 'Starboard',
+                angle: 0.017453292519943295
+              }
+            }
+          }
+        ],
         emulator: []
       }
 
@@ -338,26 +390,51 @@ Object.entries(types).forEach(([name, type]) => {
             event: 'nmea2000JsonOut',
             value: {
               description: undefined,
-              pgn: 126720,
+              pgn: 126208,
               prio: 3,
               dst: 204,
               input: undefined,
               src: undefined,
               timestamp: undefined,
               fields: {
-                manufacturerCode: 'Raymarine',
-                industryCode: 'Marine Industry',
-                command: 'Seatalk1',
-                proprietaryId: 'Seatalk 1 Encoded',
-                seatalk1Command: 'Keystroke',
-                device: 33,
-                key: '-1 and -10',
-                keyinverted: 222
+                functionCode: 'Command',
+                pgn: 65379,
+                numberOfParameters: 4,
+                list: [
+                  { parameter: 1, value: 'Raymarine' },
+                  { parameter: 3, value: 'Marine Industry' },
+                  { parameter: 4, value: 65535 },
+                  { parameter: 5, value: 4 }
+                ],
+                priority: 'Leave unchanged'
               }
             }
           }
         ],
-        simrad: []
+        simrad: [
+          {
+            event: 'nmea2000JsonOut',
+            value: {
+              description: undefined,
+              pgn: 130850,
+              prio: 2,
+              dst: 255,
+              input: undefined,
+              src: undefined,
+              timestamp: undefined,
+              fields: {
+                manufacturerCode: 'Simrad',
+                industryCode: 'Marine Industry',
+                proprietaryId: 'Autopilot',
+                commandType: 'AP Command',
+                event: 'Tack',
+                address: 3,
+                unknownA: 0,
+                unknownB: 0
+              }
+            }
+          }
+        ]
       }
 
       if (!expected[name]) {
