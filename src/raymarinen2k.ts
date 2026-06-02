@@ -448,15 +448,14 @@ export default function (app: any): Autopilot {
                 if (
                   v[id] &&
                   v[id].n2k &&
-                  ((
-                    v[id].n2k.hardwareVersion &&
+                  ((v[id].n2k.hardwareVersion &&
                     v[id].n2k.hardwareVersion.startsWith(
                       'Raymarine EV-1 Course Computer'
                     )) ||
-                    v[id].n2k.modelVersion &&
-                    v[id].n2k.modelVersion.startsWith(
-                      'Raymarine EV-1 Course Computer'
-                    ))
+                    (v[id].n2k.modelVersion &&
+                      v[id].n2k.modelVersion.startsWith(
+                        'Raymarine EV-1 Course Computer'
+                      )))
                 ) {
                   discovered = id
                 }
