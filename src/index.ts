@@ -300,7 +300,9 @@ export default function (app: any) {
           } else if (apData.state === 'wind') {
             return autopilot.putTargetWindPromise(radiansToDegrees(value))
           } else {
-            throw new Error(`Unable to set target value! STATE = ${apData.state}`)
+            throw new Error(
+              `Unable to set target value! STATE = ${apData.state}`
+            )
           }
         },
         adjustTarget: async (value, _deviceId) => {

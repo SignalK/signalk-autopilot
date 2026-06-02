@@ -399,7 +399,7 @@ export default function (app: any): Autopilot {
     putTackPromise: (value: string) =>
       toActionPromise((cb) => pilot.putTack(undefined, undefined, value, cb)),
 
-    putTack: (context: string, path: string, _value: any, _cb: any) => {
+    putTack: (_context: string, _path: string, _value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
       if (state !== 'wind' && state !== 'auto') {
