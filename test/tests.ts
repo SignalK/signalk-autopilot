@@ -18,6 +18,50 @@ import { expect } from 'chai'
 import { types, Autopilot } from '../dist/index'
 import { TestApp, ExpectedEvent } from './utils'
 
+describe('test emulator autopilot', function () {
+  it('exposes route as an available mode', () => {
+    const app = new TestApp([])
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({})
+
+    try {
+      expect(autopilot.modes?.()).to.deep.equal(['auto', 'wind', 'route'])
+      const stateNames = autopilot.states?.().map((s) => s.name)
+      expect(stateNames).to.include('route')
+    } finally {
+      autopilot.stop()
+    }
+  })
+
+  it('tacks by flipping the target apparent wind angle side', () => {
+    const app = new TestApp([], {
+      'steering.autopilot.state.value': 'wind',
+      'environment.wind.angleApparent.value': -Math.PI / 4
+    })
+
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({})
+
+    try {
+      autopilot.putState(undefined, undefined, 'wind')
+
+      let res = autopilot.putTack(undefined, undefined, 'starboard')
+      expect(res.statusCode).to.equal(200)
+      expect(
+        app.getSelfPath('steering.autopilot.target.windAngleApparent.value')
+      ).to.be.closeTo(Math.PI / 4, 0.000001)
+
+      res = autopilot.putTack(undefined, undefined, 'port')
+      expect(res.statusCode).to.equal(200)
+      expect(
+        app.getSelfPath('steering.autopilot.target.windAngleApparent.value')
+      ).to.be.closeTo(-Math.PI / 4, 0.000001)
+    } finally {
+      autopilot.stop()
+    }
+  })
+})
+
 Object.entries(types).forEach(([name, type]) => {
   if (name === 'emulator') {
     return

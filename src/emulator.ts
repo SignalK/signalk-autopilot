@@ -66,8 +66,13 @@ export default function (app: any): Autopilot {
       return [
         { name: 'standby', engaged: false },
         { name: 'auto', engaged: true },
-        { name: 'wind', engaged: true }
+        { name: 'wind', engaged: true },
+        { name: 'route', engaged: true }
       ]
+    },
+
+    modes: () => {
+      return ['auto', 'wind', 'route']
     },
 
     putTargetHeadingPromise: (value: number) =>
