@@ -19,6 +19,32 @@ import { types, Autopilot } from '../dist/index'
 import { TestApp, ExpectedEvent } from './utils'
 
 describe('test emulator autopilot', function () {
+  it('uses cross-track error to correct route target heading', () => {
+    const app = new TestApp([], {
+      'navigation.course.calcValues.bearingTrackTrue.value': Math.PI / 2,
+      'navigation.magneticVariation.value': Math.PI / 18,
+      'navigation.course.calcValues.crossTrackError.value': 500
+    })
+
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({ routeXteLookahead: 500, routeMaxXteCorrection: 45 })
+
+    try {
+      autopilot.putState(undefined, undefined, 'route')
+      expect(
+        app.getSelfPath('steering.autopilot.target.headingMagnetic.value')
+      ).to.be.closeTo((7 * Math.PI) / 36, 0.000001)
+
+      app.paths['navigation.course.calcValues.crossTrackError.value'] = -500
+      autopilot.putState(undefined, undefined, 'route')
+      expect(
+        app.getSelfPath('steering.autopilot.target.headingMagnetic.value')
+      ).to.be.closeTo((25 * Math.PI) / 36, 0.000001)
+    } finally {
+      autopilot.stop()
+    }
+  })
+
   it('exposes route as an available mode', () => {
     const app = new TestApp([])
     const autopilot: Autopilot = types.emulator(app)
