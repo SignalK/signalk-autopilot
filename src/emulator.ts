@@ -19,8 +19,7 @@ import { toActionPromise } from './actionPromise'
 import { ActionResult } from '@signalk/server-api'
 
 const state_path = 'steering.autopilot.state.value'
-const routeTrackTruePath =
-  'navigation.course.calcValues.bearingTrackTrue.value'
+const routeTrackTruePath = 'navigation.course.calcValues.bearingTrackTrue.value'
 const routeTargetMagneticFallbackPaths = [
   'navigation.course.calcValues.bearingTrackMagnetic.value',
   'navigation.course.calcValues.bearingMagnetic.value'
