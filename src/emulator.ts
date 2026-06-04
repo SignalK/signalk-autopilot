@@ -23,7 +23,7 @@ const state_path = 'steering.autopilot.state.value'
 const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 } as ActionResult
 const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 } as ActionResult
 
-const source = 'emulator'
+const source = 'autopilot'
 
 export default function (app: any): Autopilot {
   let currentState = 'standby'
