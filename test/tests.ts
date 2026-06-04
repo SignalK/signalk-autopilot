@@ -33,6 +33,25 @@ describe('test emulator autopilot', function () {
     }
   })
 
+  it('sets the absolute apparent wind target in wind mode', () => {
+    const app = new TestApp([], {
+      'steering.autopilot.state.value': 'wind'
+    })
+
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({})
+
+    try {
+      const res = autopilot.putTargetWind(undefined, undefined, -30)
+      expect(res.statusCode).to.equal(200)
+      expect(
+        app.getSelfPath('steering.autopilot.target.windAngleApparent.value')
+      ).to.be.closeTo(-Math.PI / 6, 0.000001)
+    } finally {
+      autopilot.stop()
+    }
+  })
+
   it('tacks by flipping the target apparent wind angle side', () => {
     const app = new TestApp([], {
       'steering.autopilot.state.value': 'wind',
