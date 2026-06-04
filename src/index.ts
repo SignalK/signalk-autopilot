@@ -282,10 +282,18 @@ export default function (app: any) {
           return apData
         },
         getState: async (_deviceId: string) => {
-          return apData.state as string
+          return apData.engaged ? 'enabled' : 'disabled'
         },
         setState: async (state, _deviceId) => {
-          if (isValidState(state)) {
+          if (state === 'enabled') {
+            return autopilot.putStatePromise(
+              isValidMode(apData.mode as string)
+                ? (apData.mode as string)
+                : lastState || defaultEngagedMode
+            )
+          } else if (state === 'disabled') {
+            return autopilot.putStatePromise('standby')
+          } else if (isValidState(state)) {
             return autopilot.putStatePromise(state)
           } else {
             throw new Error(`${state} is not a valid value!`)
