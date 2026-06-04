@@ -286,15 +286,25 @@ export default function (app: any) {
         },
         setState: async (state, _deviceId) => {
           if (state === 'enabled') {
-            return autopilot.putStatePromise(
-              isValidMode(apData.mode as string)
-                ? (apData.mode as string)
-                : lastState || defaultEngagedMode
-            )
+            const target = isValidMode(apData.mode as string)
+              ? (apData.mode as string)
+              : lastState || defaultEngagedMode
+            await autopilot.putStatePromise(target)
+            apData.state = target
+            apData.mode = target
+            apData.engaged = true
           } else if (state === 'disabled') {
-            return autopilot.putStatePromise('standby')
+            await autopilot.putStatePromise('standby')
+            apData.state = 'standby'
+            apData.engaged = false
           } else if (isValidState(state)) {
-            return autopilot.putStatePromise(state)
+            await autopilot.putStatePromise(state)
+            const stateObj = apData.options.states.find(
+              (s) => s.name === state
+            )
+            apData.state = state
+            apData.engaged = stateObj ? stateObj.engaged : false
+            if (apData.engaged) apData.mode = state
           } else {
             throw new Error(`${state} is not a valid value!`)
           }
@@ -304,7 +314,10 @@ export default function (app: any) {
         },
         setMode: async (mode, _deviceId) => {
           if (isValidMode(mode)) {
-            return autopilot.putStatePromise(mode)
+            await autopilot.putStatePromise(mode)
+            apData.mode = mode
+            apData.state = mode
+            apData.engaged = true
           } else {
             throw new Error(`${mode} is not a valid mode!`)
           }
@@ -329,10 +342,16 @@ export default function (app: any) {
           )
         },
         engage: async (_deviceId) => {
-          return autopilot.putStatePromise(lastState || defaultEngagedMode)
+          const target = lastState || defaultEngagedMode
+          await autopilot.putStatePromise(target)
+          apData.state = target
+          apData.mode = target
+          apData.engaged = true
         },
         disengage: async (_deviceId) => {
-          return autopilot.putStatePromise('standby')
+          await autopilot.putStatePromise('standby')
+          apData.state = 'standby'
+          apData.engaged = false
         },
         tack: async (direction, _deviceId) => {
           return autopilot.putTackPromise(direction)
