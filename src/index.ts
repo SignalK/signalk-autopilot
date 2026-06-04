@@ -61,6 +61,12 @@ const defaultEngagedMode = 'auto'
 const isValidState = (value: string) => {
   return apData.options.states.findIndex((i) => i.name === value) !== -1
 }
+const isValidMode = (value: string) => {
+  if (apData.options.modes.length > 0) {
+    return apData.options.modes.includes(value)
+  }
+  return apData.options.states.some((s) => s.name === value && s.engaged)
+}
 
 export interface Autopilot {
   id: number
@@ -286,10 +292,14 @@ export default function (app: any) {
           }
         },
         getMode: async (_deviceId) => {
-          throw new Error('Not implemented!')
+          return apData.mode as string
         },
-        setMode: async (_mode, _deviceId) => {
-          throw new Error('Not implemented!')
+        setMode: async (mode, _deviceId) => {
+          if (isValidMode(mode)) {
+            return autopilot.putStatePromise(mode)
+          } else {
+            throw new Error(`${mode} is not a valid mode!`)
+          }
         },
         getTarget: async (_deviceId) => {
           return apData.target as number
@@ -394,8 +404,12 @@ export default function (app: any) {
                 (i) => i.name === pathValue.value
               )
               apData.engaged = stateObj ? stateObj.engaged : false
+              if (apData.engaged) {
+                apData.mode = apData.state
+              }
               app.autopilotUpdate(apType, {
                 state: apData.state,
+                mode: apData.mode,
                 engaged: apData.engaged
               })
               if (apData.state != null && apData.state !== 'standby') {
