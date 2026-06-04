@@ -300,9 +300,7 @@ export default function (app: any) {
             apData.engaged = false
           } else if (isValidState(state)) {
             await autopilot.putStatePromise(state)
-            const stateObj = apData.options.states.find(
-              (s) => s.name === state
-            )
+            const stateObj = apData.options.states.find((s) => s.name === state)
             apData.state = state
             apData.engaged = stateObj ? stateObj.engaged : false
             if (apData.engaged) apData.mode = state
