@@ -138,6 +138,7 @@ export default function (app: any) {
   const pilots: { [key: string]: Autopilot } = {}
   let apType = '' // autopilot type
   let lastState: string | undefined = undefined
+  let dodgeSaved: { state: string | null; mode: string | null } | null = null
 
   Object.keys(types).forEach((type) => {
     const module = types[type]
@@ -359,8 +360,35 @@ export default function (app: any) {
         gybe: async (_direction, _deviceId) => {
           throw new Error('Not implemented!')
         },
-        dodge: async (_direction, _deviceId) => {
-          throw new Error('Not implemented!')
+        dodge: async (value, _deviceId) => {
+          if (value === null) {
+            if (dodgeSaved !== null) {
+              const restoreState = dodgeSaved.state || 'standby'
+              await autopilot.putStatePromise(restoreState)
+              apData.state = restoreState
+              apData.mode = dodgeSaved.mode
+              const stateObj = apData.options.states.find(
+                (s) => s.name === restoreState
+              )
+              apData.engaged = stateObj ? stateObj.engaged : false
+              dodgeSaved = null
+            }
+            return
+          }
+          if (dodgeSaved === null) {
+            dodgeSaved = { state: apData.state, mode: apData.mode }
+          }
+          if (apData.state !== 'auto') {
+            await autopilot.putStatePromise('auto')
+            apData.state = 'auto'
+            apData.mode = 'auto'
+            apData.engaged = true
+          }
+          if (value !== 0) {
+            await autopilot.putAdjustHeadingPromise(
+              Math.round(radiansToDegrees(value))
+            )
+          }
         },
         courseCurrentPoint: async (_deviceId: string): Promise<void> => {
           throw new Error('Not implemented!')
