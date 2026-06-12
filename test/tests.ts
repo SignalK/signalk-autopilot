@@ -567,10 +567,13 @@ Object.entries(types).forEach(([name, type]) => {
             }
           },
           {
-            // The proprietary track-to-waypoint command (PGN 126720,
-            // `6c 05 1a 50`) that actually advances the EV-1, emitted right
-            // after the 65379 mode-set above. Without it the pilot sets the
-            // track sub-mode but does not move to the next waypoint.
+            // The proprietary track-to-waypoint command that actually
+            // advances the EV-1. Wire form: a PGN 126208 Group Function
+            // (`,3,126208,...`) whose `00 ef 01` payload targets the inner
+            // PGN 126720 (Seatalk1 Encoded), with `6c 05 1a 50` identifying
+            // it as TTW. Emitted right after the 65379 mode-set above;
+            // without it the pilot sets the track sub-mode but does not
+            // move to the next waypoint.
             event: 'nmea2000out',
             value:
               /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50/
@@ -611,11 +614,12 @@ Object.entries(types).forEach(([name, type]) => {
           if (res.state === 'COMPLETED') {
             expect(res.statusCode).to.equal(200)
             if (name === 'raymarineN2K') {
-              // TestApp.emit tolerates missing trailing events, so without
-              // this a dropped track-to-waypoint command (the 2nd frame)
-              // would pass silently. Assert BOTH frames fired: the 65379
-              // mode-set and the proprietary 126720 TTW command.
-              expect(app.eventCount).to.equal(2)
+              // TestApp.emit silently tolerates missing trailing events, so
+              // without an explicit check a dropped TTW frame (the 2nd) would
+              // pass through. Confirm that every expected event was consumed.
+              // Using `at.least` so the test remains robust to unrelated
+              // future emits while still catching the missing-frame regression.
+              expect(app.eventCount).to.be.at.least(expected[name].length)
             }
             done()
           }

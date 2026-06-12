@@ -87,9 +87,12 @@ const heading_command =        "%s,3,126208,%s,%s,14,01,50,ff,00,f8,03,01,3b,07,
 const raymarine_ttw_Mode =     "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
 */
 
-// Raymarine proprietary "track to waypoint" command (PGN 126720; command
-// discriminator `6c 05 1a 50` — same `6c 05 XX 50` family as hull-type
-// `16 50` and auto-turn `26 50`). Issued on waypoint advance IN ADDITION to
+// Raymarine proprietary "track to waypoint" command. The outer frame is a
+// PGN 126208 Group Function (literally `,3,126208,...` in the format string);
+// the 24-bit `00 ef 01` payload inside targets the inner PGN 126720 (Seatalk1
+// Encoded). The trailing `6c 05 1a 50` is the command discriminator that
+// identifies this as TTW within the `6c 05 XX 50` family (hull-type uses
+// `16 50`, auto-turn `26 50`). Emitted on waypoint advance IN ADDITION to
 // setting the 65379 track sub-mode: the mode-set alone does not make the
 // EV-1 advance to the next waypoint. Bytes match the working SeaTalk-STNG
 // backend (raystngconv.js). Args: timestamp, src, dst(deviceid).
@@ -589,10 +592,13 @@ function changeHeadingByKey(app: any, deviceid: number, key: string) {
 function advanceWaypoint(_app: any, deviceid: number) {
   // Advancing on a Raymarine EV-1 is a two-part command (matching the
   // SeaTalk-STNG backend in raystngconv.js):
-  //   1. set the track sub-mode via PGN 65379 (0x181 = "No Drift, COG
-  //      referenced, in track, course changes"), and
-  //   2. issue the proprietary track-to-waypoint command via PGN 126720
-  //      (`6c 05 1a 50`).
+  //   1. set the SeatalkPilotMode16 to NoDriftCogReferencedinTrackCourseChanges
+  //      (the wire-level pilotMode enum value 0x0181) on PGN 65379, via a
+  //      PGN 126208 Group Function Command; and
+  //   2. issue the proprietary track-to-waypoint command — a PGN 126208
+  //      Group Function whose 24-bit `00 ef 01` payload targets the inner
+  //      PGN 126720 (Seatalk1 Encoded), with the `6c 05 1a 50` discriminator
+  //      identifying it as TTW.
   // Sending only (1) sets the mode but does NOT make the pilot advance to
   // the next waypoint, which is why the prior single-PGN version did not
   // advance on EV-1 hardware.
