@@ -565,6 +565,15 @@ Object.entries(types).forEach(([name, type]) => {
                 priority: 'Leave unchanged'
               }
             }
+          },
+          {
+            // The proprietary track-to-waypoint command (PGN 126720,
+            // `6c 05 1a 50`) that actually advances the EV-1, emitted right
+            // after the 65379 mode-set above. Without it the pilot sets the
+            // track sub-mode but does not move to the next waypoint.
+            event: 'nmea2000out',
+            value:
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50/
           }
         ]
       }
@@ -601,6 +610,13 @@ Object.entries(types).forEach(([name, type]) => {
           expect(res.state).to.be.oneOf(['COMPLETED', 'PENDING'])
           if (res.state === 'COMPLETED') {
             expect(res.statusCode).to.equal(200)
+            if (name === 'raymarineN2K') {
+              // TestApp.emit tolerates missing trailing events, so without
+              // this a dropped track-to-waypoint command (the 2nd frame)
+              // would pass silently. Assert BOTH frames fired: the 65379
+              // mode-set and the proprietary 126720 TTW command.
+              expect(app.eventCount).to.equal(2)
+            }
             done()
           }
         }

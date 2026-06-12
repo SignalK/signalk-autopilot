@@ -85,8 +85,17 @@ const wind_direction_command =
 const key_command = "%s,7,126720,%s,%s,22,3b,9f,f0,81,86,21,%s,ff,ff,ff,ff,ff,c1,c2,cd,66,80,d3,42,b1,c8"
 const heading_command =        "%s,3,126208,%s,%s,14,01,50,ff,00,f8,03,01,3b,07,03,04,06,%s,%s"
 const raymarine_ttw_Mode =     "%s,3,126208,%s,%s,17,01,63,ff,00,f8,04,01,3b,07,03,04,04,81,01,05,ff,ff"
-const raymarine_ttw =          "%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50"
 */
+
+// Raymarine proprietary "track to waypoint" command (PGN 126720; command
+// discriminator `6c 05 1a 50` — same `6c 05 XX 50` family as hull-type
+// `16 50` and auto-turn `26 50`). Issued on waypoint advance IN ADDITION to
+// setting the 65379 track sub-mode: the mode-set alone does not make the
+// EV-1 advance to the next waypoint. Bytes match the working SeaTalk-STNG
+// backend (raystngconv.js). Args: timestamp, src, dst(deviceid).
+const raymarine_ttw =
+  '%s,3,126208,%s,%s,21,00,00,ef,01,ff,ff,ff,ff,ff,ff,04,01,3b,07,03,04,04,6c,05,1a,50'
+
 const hull_type_command =
   '%s,3,126208,%s,%s,19,01,00,ef,01,f8,05,01,3b,07,03,04,04,6c,05,16,50,06,%s,52,ff'
 const request_hull_type_command =
@@ -578,7 +587,16 @@ function changeHeadingByKey(app: any, deviceid: number, key: string) {
 }
 
 function advanceWaypoint(_app: any, deviceid: number) {
-  const pgn = createNmeaGroupFunction(
+  // Advancing on a Raymarine EV-1 is a two-part command (matching the
+  // SeaTalk-STNG backend in raystngconv.js):
+  //   1. set the track sub-mode via PGN 65379 (0x181 = "No Drift, COG
+  //      referenced, in track, course changes"), and
+  //   2. issue the proprietary track-to-waypoint command via PGN 126720
+  //      (`6c 05 1a 50`).
+  // Sending only (1) sets the mode but does NOT make the pilot advance to
+  // the next waypoint, which is why the prior single-PGN version did not
+  // advance on EV-1 hardware.
+  const modePgn = createNmeaGroupFunction(
     GroupFunction.Command,
     new PGN_65379_SeatalkPilotMode({
       pilotMode: SeatalkPilotMode16.NoDriftCogReferencedinTrackCourseChanges,
@@ -587,7 +605,13 @@ function advanceWaypoint(_app: any, deviceid: number) {
     { priority: Priority.LeaveUnchanged },
     deviceid
   )
-  return [pgn]
+  const ttw = util.format(
+    raymarine_ttw,
+    new Date().toISOString(),
+    default_src,
+    deviceid
+  )
+  return [modePgn, ttw]
 }
 
 /*
