@@ -200,6 +200,20 @@
       text-align: center;
     }
 
+    #targetValue {
+      top: 190px;
+      left: 38px;
+      width: 158px;
+      height: 18px;
+      position: absolute;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      visibility: hidden;
+    }
+
     .icon18x18 {
       width: 18px;
       height: 18px;
@@ -518,6 +532,7 @@
         <div class="icon18x18" id="powerOnIcon"></div>
       </div>
       <div id="bottomBarIcon">&nbsp;Loading Auto Pilot...</div>
+      <div id="targetValue"></div>
       <div id="headingValue" onClick="autopilot.changePreferedDisplayMode();"></div>
       <div id="pilotStatus" onClick="autopilot.changePreferedDisplayMode();"></div>
       <div class="messageScreen" id="silenceScreen">

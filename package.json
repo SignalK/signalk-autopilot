@@ -41,6 +41,7 @@
     "html-minimizer-webpack-plugin": "^4.4.0",
     "mocha": "^11.7.1",
     "prettier": "^3.8.2",
+    "terser-webpack-plugin": "^5.3.10",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
