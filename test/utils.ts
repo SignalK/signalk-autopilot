@@ -23,6 +23,18 @@ export type ExpectedEvent = {
   paths?: { [key: string]: any }
 }
 
+// canboat 8 (@canboat/ts-pgns 2) turned PGN 130850's 'Autopilot' match field
+// (proprietaryId, always 255) into an unset networkGroup, which encodes to the
+// same 0xff. Older ts-pgns still fills proprietaryId in; drop it so the
+// expectations hold for both.
+function withoutApProprietaryId(msg: any) {
+  if (msg?.pgn !== 130850 || msg.fields?.proprietaryId !== 'Autopilot') {
+    return msg
+  }
+  const { proprietaryId: _, ...fields } = msg.fields
+  return { ...msg, fields }
+}
+
 export class TestApp {
   paths: { [key: string]: any } = {}
   expectedEvents: ExpectedEvent[]
@@ -56,7 +68,7 @@ export class TestApp {
       } else if (expected.value instanceof RegExp) {
         expect(msg).to.match(expected.value)
       } else if (typeof expected.value === 'object') {
-        expect(msg).to.deep.equal(expected.value)
+        expect(withoutApProprietaryId(msg)).to.deep.equal(expected.value)
       }
       if (expected.generates) {
         expected.generates.forEach((e) => {

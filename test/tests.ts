@@ -140,7 +140,6 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Simrad',
                 industryCode: 'Marine Industry',
-                proprietaryId: 'Autopilot',
                 commandType: 'AP Command',
                 event: 'No Drift mode',
                 address: 3,
@@ -377,7 +376,6 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Simrad',
                 industryCode: 'Marine Industry',
-                proprietaryId: 'Autopilot',
                 event: 'Change course',
                 address: 3,
                 commandType: 'AP Command',
@@ -469,7 +467,6 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Simrad',
                 industryCode: 'Marine Industry',
-                proprietaryId: 'Autopilot',
                 commandType: 'AP Command',
                 event: 'Tack',
                 address: 3,
