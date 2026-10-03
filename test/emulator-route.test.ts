@@ -8,8 +8,10 @@ const trackMagneticPath =
 const waypointMagneticPath =
   'navigation.course.calcValues.bearingMagnetic.value'
 const xtePath = 'navigation.course.calcValues.crossTrackError.value'
+const variationPath = 'navigation.magneticVariation.value'
 const targetPath = 'steering.autopilot.target.headingMagnetic.value'
 const statePath = 'steering.autopilot.state.value'
+const invalidVariations = [undefined, null, NaN, Infinity, '0']
 
 function nextUpdate(app: TestApp): Promise<void> {
   return new Promise((resolve) => {
@@ -26,8 +28,9 @@ describe('emulator route data', () => {
   it('keeps a north track target with zero XTE instead of the current heading', () => {
     const app = new TestApp([], {
       [trackTruePath]: 0,
+      [trackMagneticPath]: Math.PI,
       [xtePath]: 0,
-      'navigation.magneticVariation.value': 0,
+      [variationPath]: 0,
       'navigation.headingMagnetic.value': Math.PI / 2
     })
     const autopilot = types.emulator(app)
@@ -42,6 +45,28 @@ describe('emulator route data', () => {
       autopilot.stop()
     }
   })
+
+  for (const variation of invalidVariations) {
+    it(`uses the magnetic track when magnetic variation is invalid (${String(variation)})`, () => {
+      const app = new TestApp([], {
+        [trackTruePath]: Math.PI,
+        [trackMagneticPath]: Math.PI / 2,
+        [variationPath]: variation,
+        [xtePath]: 100
+      })
+      const autopilot = types.emulator(app)
+      autopilot.start({ routeXteLookahead: 100 })
+
+      try {
+        expect(
+          autopilot.putState(undefined, undefined, 'route').statusCode
+        ).to.equal(200)
+        expect(app.getSelfPath(targetPath)).to.be.closeTo(Math.PI / 4, 0.000001)
+      } finally {
+        autopilot.stop()
+      }
+    })
+  }
 
   it('corrects the magnetic track bearing instead of steering to the waypoint', () => {
     const app = new TestApp([], {
@@ -88,6 +113,14 @@ describe('emulator route data', () => {
 
   const invalidCourses = [
     { name: 'no course data', paths: {} },
+    ...invalidVariations.map((variation) => ({
+      name: `a true track without valid magnetic variation (${String(variation)})`,
+      paths: {
+        [trackTruePath]: Math.PI / 2,
+        [variationPath]: variation,
+        [xtePath]: 0
+      }
+    })),
     {
       name: 'only the bearing to the waypoint',
       paths: { [waypointMagneticPath]: Math.PI, [xtePath]: 0 }
@@ -200,6 +233,65 @@ describe('emulator route data', () => {
         await autopilot.putStatePromise('route')
         expect(app.getSelfPath(statePath)).to.equal('route')
         expect(app.getSelfPath(targetPath)).to.be.closeTo(Math.PI / 2, 0.000001)
+      } finally {
+        autopilot.stop()
+      }
+    })
+  }
+
+  for (const magneticTrackAvailable of [true, false]) {
+    it(`handles loss of magnetic variation ${magneticTrackAvailable ? 'using the magnetic track' : 'by returning to standby'}`, async () => {
+      const app = new TestApp([], {
+        [trackTruePath]: Math.PI / 2,
+        [trackMagneticPath]: magneticTrackAvailable ? Math.PI : undefined,
+        [variationPath]: Math.PI / 18,
+        [xtePath]: 100
+      })
+      const autopilot = types.emulator(app)
+      autopilot.start({ routeXteLookahead: 100 })
+
+      try {
+        await autopilot.putStatePromise('route')
+        expect(app.getSelfPath(targetPath)).to.be.closeTo(
+          (7 * Math.PI) / 36,
+          0.000001
+        )
+
+        app.paths[variationPath] = null
+        await nextUpdate(app)
+
+        expect(app.getSelfPath(statePath)).to.equal(
+          magneticTrackAvailable ? 'route' : 'standby'
+        )
+        if (magneticTrackAvailable) {
+          expect(app.getSelfPath(targetPath)).to.be.closeTo(
+            (3 * Math.PI) / 4,
+            0.000001
+          )
+        } else {
+          expect(app.getSelfPath(targetPath)).to.equal(null)
+        }
+
+        app.paths[variationPath] = Math.PI / 18
+        await nextUpdate(app)
+
+        expect(app.getSelfPath(statePath)).to.equal(
+          magneticTrackAvailable ? 'route' : 'standby'
+        )
+        if (magneticTrackAvailable) {
+          expect(app.getSelfPath(targetPath)).to.be.closeTo(
+            (7 * Math.PI) / 36,
+            0.000001
+          )
+        } else {
+          expect(app.getSelfPath(targetPath)).to.equal(null)
+          await autopilot.putStatePromise('route')
+          expect(app.getSelfPath(statePath)).to.equal('route')
+          expect(app.getSelfPath(targetPath)).to.be.closeTo(
+            (7 * Math.PI) / 36,
+            0.000001
+          )
+        }
       } finally {
         autopilot.stop()
       }

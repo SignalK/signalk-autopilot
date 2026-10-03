@@ -148,7 +148,7 @@ export default function (app: any): Autopilot {
         if (heading === undefined) {
           return {
             message:
-              'Route mode requires a track bearing and cross-track error',
+              'Route mode requires a magnetic track bearing (direct or converted from true) and cross-track error',
             ...FAILURE_RES
           }
         }
@@ -319,10 +319,14 @@ export default function (app: any): Autopilot {
     }
 
     const trackHeadingTrue = app.getSelfPath(routeTrackTruePath)
-    if (Number.isFinite(trackHeadingTrue)) {
+    const magneticVariation = app.getSelfPath(magneticVariationPath)
+    if (
+      Number.isFinite(trackHeadingTrue) &&
+      Number.isFinite(magneticVariation)
+    ) {
       return trueHeadingToMagnetic(
         correctedRouteHeading(trackHeadingTrue, xte),
-        app.getSelfPath(magneticVariationPath)
+        magneticVariation
       )
     }
 
@@ -348,7 +352,6 @@ function degsToRad(degrees: number) {
 }
 
 function trueHeadingToMagnetic(headingTrue: number, magneticVariation: number) {
-  if (!Number.isFinite(magneticVariation)) return compassAngle(headingTrue)
   return compassAngle(headingTrue - magneticVariation)
 }
 

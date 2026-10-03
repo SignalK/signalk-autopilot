@@ -35,11 +35,16 @@ navigating to a single waypoint. It uses
 `bearingTrackMagnetic`, together with `crossTrackError`. It does not fall back to
 the direct bearing from the vessel to the waypoint.
 
-Entering `route` requires a finite track bearing and cross-track error. If either
-is missing or invalid, the command returns an error without changing the current
-mode or target. If this data becomes unavailable while following the route, the
-emulator returns to `standby` and clears its published heading target. Restoring
-the data does not automatically engage route mode again.
+Converting the true track bearing requires a finite `navigation.magneticVariation`,
+including zero. Otherwise, the emulator uses the magnetic track bearing if
+available; it never treats a true bearing as a magnetic bearing.
+
+Entering `route` requires a finite magnetic track bearing (direct or converted
+from true) and cross-track error. If either is missing or invalid, the command
+returns an error without changing the current mode or target. If this data becomes
+unavailable while following the route, the emulator returns to `standby` and clears
+its published heading target. Restoring the data does not automatically engage
+route mode again.
 
 | Property | Default | Description |
 | --- | --- | --- |
@@ -148,4 +153,3 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/steering/autopilot/hullTyp
   "value": "power",
 }
 ```
-
