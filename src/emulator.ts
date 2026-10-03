@@ -129,8 +129,34 @@ export default function (app: any): Autopilot {
         pilot.putTargetWind(undefined, undefined, value, cb)
       ),
 
-    putTargetWind: (_context: string, _path: string, _value: any, _cb: any) => {
-      return { message: 'Unsupported', ...FAILURE_RES }
+    putTargetWind: (_context: string, _path: string, value: any, _cb: any) => {
+      const state = app.getSelfPath(state_path)
+      const targetDegrees = Number(value)
+
+      if (state !== 'wind') {
+        return { message: 'Autopilot not in wind mode', ...FAILURE_RES }
+      }
+      if (!Number.isFinite(targetDegrees)) {
+        return { message: 'Invalid wind target', ...FAILURE_RES }
+      }
+
+      const newTarget = degsToRad(targetDegrees)
+      currentTarget = newTarget
+
+      app.handleMessage(source, {
+        updates: [
+          {
+            values: [
+              {
+                path: 'steering.autopilot.target.windAngleApparent',
+                value: newTarget
+              }
+            ]
+          }
+        ]
+      })
+
+      return SUCCESS_RES
     },
 
     putAdjustHeadingPromise: (value: number) =>
@@ -200,30 +226,35 @@ export default function (app: any): Autopilot {
     putTack: (_context: string, _path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'wind' && state !== 'auto') {
-        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      if (state !== 'wind') {
+        return { message: 'Autopilot not in wind mode', ...FAILURE_RES }
+      }
+      if (value !== 'port' && value !== 'starboard') {
+        return { message: 'Unsupported tack direction', ...FAILURE_RES }
       }
 
-      // Simulate by reflecting the apparent wind target across 0 — emulates
-      // the boat coming through head-to-wind onto the opposite tack.
-      if (state === 'wind' && currentTarget !== undefined) {
-        currentTarget = -currentTarget
-        app.handleMessage(source, {
-          updates: [
-            {
-              values: [
-                {
-                  path: 'steering.autopilot.target.windAngleApparent',
-                  value: currentTarget
-                }
-              ]
-            }
-          ]
-        })
-      }
+      const target = app.getSelfPath(
+        'steering.autopilot.target.windAngleApparent.value'
+      )
+      const reference = Number.isFinite(target)
+        ? target
+        : app.getSelfPath('environment.wind.angleApparent.value')
+      const newTarget = (value === 'port' ? -1 : 1) * Math.abs(reference || 0)
+      currentTarget = newTarget
 
-      // Direction is informational for emulation; the math is symmetric.
-      void value
+      app.handleMessage(source, {
+        updates: [
+          {
+            values: [
+              {
+                path: 'steering.autopilot.target.windAngleApparent',
+                value: newTarget
+              }
+            ]
+          }
+        ]
+      })
+
       return SUCCESS_RES
     },
 
