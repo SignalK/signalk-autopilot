@@ -27,6 +27,25 @@ The current state of the autopilot can be found at the following paths:
 - steering.autopilot.state (standby, wind, route, or auto)
 - steering.autopilot.hullType (Raymarine n2k only, unknown, sailSlowTurn, sail, sailCatamaran, power, powerSlowTurn, powerFastTurn)
 
+# Emulator Route Mode
+
+The emulator follows the original departure-to-destination track, including when
+navigating to a single waypoint. It uses
+`navigation.course.calcValues.bearingTrackTrue` (converted to magnetic) or
+`bearingTrackMagnetic`, together with `crossTrackError`. It does not fall back to
+the direct bearing from the vessel to the waypoint.
+
+Entering `route` requires a finite track bearing and cross-track error. If either
+is missing or invalid, the command returns an error without changing the current
+mode or target. If this data becomes unavailable while following the route, the
+emulator returns to `standby` and clears its published heading target. Restoring
+the data does not automatically engage route mode again.
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `routeXteLookahead` | 100 m | Lookahead distance along the track. An equal XTE gives a 45 degree correction before the maximum limit is applied. |
+| `routeMaxXteCorrection` | 60 degrees | Maximum magnitude of the heading correction on either side of the track. |
+
 # API
 
 All messages to plugin are done using PUT requests. These can be done via HTTP or over WebSockets.

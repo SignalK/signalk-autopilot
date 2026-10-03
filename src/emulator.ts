@@ -20,10 +20,8 @@ import { ActionResult } from '@signalk/server-api'
 
 const state_path = 'steering.autopilot.state.value'
 const routeTrackTruePath = 'navigation.course.calcValues.bearingTrackTrue.value'
-const routeTargetMagneticFallbackPaths = [
-  'navigation.course.calcValues.bearingTrackMagnetic.value',
-  'navigation.course.calcValues.bearingMagnetic.value'
-]
+const routeTrackMagneticPath =
+  'navigation.course.calcValues.bearingTrackMagnetic.value'
 const routeXtePath = 'navigation.course.calcValues.crossTrackError.value'
 const magneticVariationPath = 'navigation.magneticVariation.value'
 const defaultRouteXteLookahead = 100
@@ -52,34 +50,38 @@ export default function (app: any): Autopilot {
       )
 
       stateInterval = setInterval(() => {
-        const delta = {
-          updates: [
-            {
-              values: [
-                { path: 'steering.autopilot.state', value: currentState }
-              ]
-            }
-          ]
-        }
+        let routeDataLost = false
         if (currentState === 'route') {
           currentTarget = getRouteTargetHeading()
+          if (currentTarget === undefined) {
+            currentState = 'standby'
+            routeDataLost = true
+          }
         }
 
-        if (
+        const values: { path: string; value: string | number | null }[] = [
+          { path: 'steering.autopilot.state', value: currentState }
+        ]
+        if (routeDataLost) {
+          values.push({
+            path: 'steering.autopilot.target.headingMagnetic',
+            value: null
+          })
+        } else if (
           (currentState === 'auto' || currentState === 'route') &&
           currentTarget !== undefined
         ) {
-          delta.updates[0].values.push({
+          values.push({
             path: 'steering.autopilot.target.headingMagnetic',
             value: currentTarget
           })
         } else if (currentState === 'wind' && currentTarget !== undefined) {
-          delta.updates[0].values.push({
+          values.push({
             path: 'steering.autopilot.target.windAngleApparent',
             value: currentTarget
           })
         }
-        app.handleMessage(source, delta)
+        app.handleMessage(source, { updates: [{ values }] })
       }, 1000)
     },
 
@@ -142,10 +144,14 @@ export default function (app: any): Autopilot {
           value: windAngle
         })
       } else if (value === 'route') {
-        const heading =
-          getRouteTargetHeading() ||
-          app.getSelfPath('navigation.headingMagnetic.value') ||
-          0
+        const heading = getRouteTargetHeading()
+        if (heading === undefined) {
+          return {
+            message:
+              'Route mode requires a track bearing and cross-track error',
+            ...FAILURE_RES
+          }
+        }
         currentTarget = heading
         delta.updates[0].values.push({
           path: 'steering.autopilot.target.headingMagnetic',
@@ -290,7 +296,7 @@ export default function (app: any): Autopilot {
           type: 'number',
           title: 'Emulator route XTE lookahead distance',
           description:
-            'Cross-track error distance, in meters, that produces about half the maximum route correction.',
+            'Lookahead distance along the track, in meters. An equal cross-track error gives a 45 degree correction before applying the maximum correction limit.',
           default: defaultRouteXteLookahead
         },
         routeMaxXteCorrection: {
@@ -307,29 +313,27 @@ export default function (app: any): Autopilot {
   return pilot
 
   function getRouteTargetHeading() {
+    const xte = app.getSelfPath(routeXtePath)
+    if (!Number.isFinite(xte)) {
+      return undefined
+    }
+
     const trackHeadingTrue = app.getSelfPath(routeTrackTruePath)
     if (Number.isFinite(trackHeadingTrue)) {
       return trueHeadingToMagnetic(
-        correctedRouteHeading(trackHeadingTrue),
+        correctedRouteHeading(trackHeadingTrue, xte),
         app.getSelfPath(magneticVariationPath)
       )
     }
 
-    for (const path of routeTargetMagneticFallbackPaths) {
-      const value = app.getSelfPath(path)
-      if (Number.isFinite(value)) {
-        return correctedRouteHeading(value)
-      }
+    const trackHeadingMagnetic = app.getSelfPath(routeTrackMagneticPath)
+    if (Number.isFinite(trackHeadingMagnetic)) {
+      return correctedRouteHeading(trackHeadingMagnetic, xte)
     }
     return undefined
   }
 
-  function correctedRouteHeading(trackHeading: number) {
-    const xte = app.getSelfPath(routeXtePath)
-    if (!Number.isFinite(xte)) {
-      return compassAngle(trackHeading)
-    }
-
+  function correctedRouteHeading(trackHeading: number, xte: number) {
     const correction = clamp(
       -Math.atan(xte / routeXteLookahead),
       -routeMaxXteCorrection,
