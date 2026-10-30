@@ -69,7 +69,7 @@ module.exports = function (app) {
 
   pilot.start = (props) => {
     deviceid = props.converterDeviceId || autopilot_dst
-    pilot.id = deviceid
+    pilot.id = Number(deviceid)
     app.debug('props.converterDeviceId:', deviceid)
   }
 
@@ -247,7 +247,7 @@ module.exports = function (app) {
       app.debug(description)
     }
 
-    pilot.id = defaultConverterId
+    pilot.id = Number(defaultConverterId)
     app.debug('*** post-discovery -> defaultConverterId', defaultConverterId)
 
     return {
