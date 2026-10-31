@@ -128,36 +128,43 @@ export default function (app: any): Autopilot {
         } else */ {
           let pgn: PGN
 
+          // spare9 must be sent as 0: left unset it is encoded as 0xFF and
+          // the NAC-3 and AC42 ignore the command
           switch (value) {
             case 'auto':
               pgn = new PGN_130850_SimnetCommandApNodrift({
                 address: pilot.id,
-                reserved5: 0
+                reserved5: 0,
+                spare9: 0
               })
               break
             case 'route':
               pgn = new PGN_130850_SimnetCommandApNav({
                 address: pilot.id,
-                reserved5: 0
+                reserved5: 0,
+                spare9: 0
               })
               break
             case 'heading':
               pgn = new PGN_130850_SimnetCommandApHeading({
                 address: pilot.id,
-                reserved5: 0
+                reserved5: 0,
+                spare9: 0
               })
               break
             case 'wind':
               pgn = new PGN_130850_SimnetCommandApWind({
                 address: pilot.id,
-                reserved5: 0
+                reserved5: 0,
+                spare9: 0
               })
               break
             default:
             case 'standby':
               pgn = new PGN_130850_SimnetCommandApStandby({
                 address: pilot.id,
-                reserved5: 0
+                reserved5: 0,
+                spare9: 0
               })
               break
           }
@@ -196,6 +203,7 @@ export default function (app: any): Autopilot {
         const pgn = new PGN_130850_SimnetCommandApChangeCourse({
           address: pilot.id,
           reserved5: 0,
+          spare9: 0,
           direction:
             value > 0 ? SimnetDirection.Starboard : SimnetDirection.Port,
           angle: degsToRad(Math.abs(value))
