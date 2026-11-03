@@ -61,6 +61,12 @@ const defaultEngagedMode = 'auto'
 const isValidState = (value: string) => {
   return apData.options.states.findIndex((i) => i.name === value) !== -1
 }
+const isValidMode = (value: string) => {
+  if (apData.options.modes.length > 0) {
+    return apData.options.modes.includes(value)
+  }
+  return apData.options.states.some((s) => s.name === value && s.engaged)
+}
 
 export interface Autopilot {
   id: number
@@ -132,6 +138,7 @@ export default function (app: any) {
   const pilots: { [key: string]: Autopilot } = {}
   let apType = '' // autopilot type
   let lastState: string | undefined = undefined
+  let dodgeSaved: { state: string | null; mode: string | null } | null = null
 
   Object.keys(types).forEach((type) => {
     const module = types[type]
@@ -276,20 +283,43 @@ export default function (app: any) {
           return apData
         },
         getState: async (_deviceId: string) => {
-          return apData.state as string
+          return apData.engaged ? 'enabled' : 'disabled'
         },
         setState: async (state, _deviceId) => {
-          if (isValidState(state)) {
-            return autopilot.putStatePromise(state)
+          if (state === 'enabled') {
+            const target = isValidMode(apData.mode as string)
+              ? (apData.mode as string)
+              : lastState || defaultEngagedMode
+            await autopilot.putStatePromise(target)
+            apData.state = target
+            apData.mode = target
+            apData.engaged = true
+          } else if (state === 'disabled') {
+            await autopilot.putStatePromise('standby')
+            apData.state = 'standby'
+            apData.engaged = false
+          } else if (isValidState(state)) {
+            await autopilot.putStatePromise(state)
+            const stateObj = apData.options.states.find((s) => s.name === state)
+            apData.state = state
+            apData.engaged = stateObj ? stateObj.engaged : false
+            if (apData.engaged) apData.mode = state
           } else {
             throw new Error(`${state} is not a valid value!`)
           }
         },
         getMode: async (_deviceId) => {
-          throw new Error('Not implemented!')
+          return apData.mode as string
         },
-        setMode: async (_mode, _deviceId) => {
-          throw new Error('Not implemented!')
+        setMode: async (mode, _deviceId) => {
+          if (isValidMode(mode)) {
+            await autopilot.putStatePromise(mode)
+            apData.mode = mode
+            apData.state = mode
+            apData.engaged = true
+          } else {
+            throw new Error(`${mode} is not a valid mode!`)
+          }
         },
         getTarget: async (_deviceId) => {
           return apData.target as number
@@ -311,10 +341,16 @@ export default function (app: any) {
           )
         },
         engage: async (_deviceId) => {
-          return autopilot.putStatePromise(lastState || defaultEngagedMode)
+          const target = lastState || defaultEngagedMode
+          await autopilot.putStatePromise(target)
+          apData.state = target
+          apData.mode = target
+          apData.engaged = true
         },
         disengage: async (_deviceId) => {
-          return autopilot.putStatePromise('standby')
+          await autopilot.putStatePromise('standby')
+          apData.state = 'standby'
+          apData.engaged = false
         },
         tack: async (direction, _deviceId) => {
           return autopilot.putTackPromise(direction)
@@ -322,8 +358,35 @@ export default function (app: any) {
         gybe: async (_direction, _deviceId) => {
           throw new Error('Not implemented!')
         },
-        dodge: async (_direction, _deviceId) => {
-          throw new Error('Not implemented!')
+        dodge: async (value, _deviceId) => {
+          if (value === null) {
+            if (dodgeSaved !== null) {
+              const restoreState = dodgeSaved.state || 'standby'
+              await autopilot.putStatePromise(restoreState)
+              apData.state = restoreState
+              apData.mode = dodgeSaved.mode
+              const stateObj = apData.options.states.find(
+                (s) => s.name === restoreState
+              )
+              apData.engaged = stateObj ? stateObj.engaged : false
+              dodgeSaved = null
+            }
+            return
+          }
+          if (dodgeSaved === null) {
+            dodgeSaved = { state: apData.state, mode: apData.mode }
+          }
+          if (apData.state !== 'auto') {
+            await autopilot.putStatePromise('auto')
+            apData.state = 'auto'
+            apData.mode = 'auto'
+            apData.engaged = true
+          }
+          if (value !== 0) {
+            await autopilot.putAdjustHeadingPromise(
+              Math.round(radiansToDegrees(value))
+            )
+          }
         },
         courseCurrentPoint: async (_deviceId: string): Promise<void> => {
           throw new Error('Not implemented!')
@@ -394,8 +457,12 @@ export default function (app: any) {
                 (i) => i.name === pathValue.value
               )
               apData.engaged = stateObj ? stateObj.engaged : false
+              if (apData.engaged) {
+                apData.mode = apData.state
+              }
               app.autopilotUpdate(apType, {
                 state: apData.state,
+                mode: apData.mode,
                 engaged: apData.engaged
               })
               if (apData.state != null && apData.state !== 'standby') {
