@@ -57,11 +57,18 @@ const states = [
   //{ name: 'nonFollowUp', engaged: true }
 ]
 
-// n2k-signalk before SignalK/n2k-signalk#392 writes Simnet's Heading mode as
+// n2k-signalk before SignalK/n2k-signalk#404 writes Simnet's Heading mode as
 // heading and No Drift as auto; later versions write auto and noDrift.
 const LEGACY_STATES: { [state: string]: string } = {
   auto: 'heading',
   noDrift: 'auto'
+}
+
+// heading was this provider's name for auto, before it followed the
+// specification, and is what an older n2k-signalk writes for Simnet's
+// Heading mode.
+function normalizeState(value: string): string {
+  return value === 'heading' ? 'auto' : value
 }
 
 // The states a state change is confirmed by: the state itself, or what an
@@ -105,6 +112,8 @@ export default function (app: any): Autopilot {
       return states
     },
 
+    normalizeState,
+
     putTargetHeadingPromise: (value: number) =>
       toActionPromise((cb) =>
         pilot.putTargetHeading(undefined, undefined, value, cb)
@@ -123,11 +132,7 @@ export default function (app: any): Autopilot {
       toActionPromise((cb) => pilot.putState(undefined, undefined, value, cb)),
 
     putState: (context: string, path: string, value: any, cb: any) => {
-      // heading was this provider's name for auto, before it followed the
-      // specification.
-      if (value === 'heading') {
-        value = 'auto'
-      }
+      value = normalizeState(value)
       if (!states.find((s) => s.name === value)) {
         return { message: `Invalid Autopilot State: ${value}`, ...FAILURE_RES }
       } else {

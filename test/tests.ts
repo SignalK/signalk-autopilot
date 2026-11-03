@@ -15,7 +15,7 @@
  */
 
 import { expect } from 'chai'
-import { types, Autopilot } from '../dist/index'
+import plugin, { types, Autopilot } from '../dist/index'
 import { TestApp, ExpectedEvent } from './utils'
 
 describe('test emulator autopilot', function () {
@@ -701,7 +701,7 @@ Object.entries(types).forEach(([name, type]) => {
 })
 
 // Simnet's Heading mode is the specification's auto and No Drift is
-// noDrift; n2k-signalk before SignalK/n2k-signalk#392 wrote them as heading
+// noDrift; n2k-signalk before SignalK/n2k-signalk#404 wrote them as heading
 // and auto.
 describe('test simrad autopilot states', function () {
   const command = (event: string, state: string): ExpectedEvent => ({
@@ -794,5 +794,99 @@ describe('test simrad autopilot states', function () {
         autopilot.putTack(undefined, undefined, 'port', () => {}).statusCode
       ).to.equal(400)
     })
+  })
+})
+
+// The V2 autopilot API takes and reports a Simrad pilot's states through the
+// provider's normalizeState: heading, from an older n2k-signalk or a client,
+// is auto.
+describe('simrad autopilot through the V2 API', function () {
+  const start = () => {
+    const paths: { [path: string]: any } = {}
+    const updates: any[] = []
+    const commands: string[] = []
+    let provider: any
+    let onDelta: (delta: any) => void = () => {}
+    const app: any = {
+      debug: () => {},
+      error: () => {},
+      handleMessage: () => {},
+      registerPutHandler: () => {},
+      registerAutopilotProvider: (p: any) => {
+        provider = p
+      },
+      autopilotUpdate: (_type: string, update: any) => updates.push(update),
+      getSelfPath: (path: string) => paths[path],
+      // The pilot reports the state its command selects.
+      emit: (_event: string, pgn: any) => {
+        const reported: { [event: string]: string } = {
+          'Heading mode': 'heading',
+          'No Drift mode': 'auto'
+        }
+        commands.push(pgn.fields?.event)
+        const state = reported[pgn.fields?.event]
+        if (state) {
+          paths['steering.autopilot.state.value'] = state
+        }
+      },
+      subscriptionmanager: {
+        subscribe: (
+          _sub: any,
+          _onStop: any,
+          _err: any,
+          cb: (delta: any) => void
+        ) => {
+          onDelta = cb
+        }
+      }
+    }
+    const instance = plugin(app)
+    instance.start({ type: 'simrad' })
+    const report = (value: string) =>
+      onDelta({
+        updates: [
+          {
+            $source: 'autopilot',
+            values: [{ path: 'steering.autopilot.state', value }]
+          }
+        ]
+      })
+    return { instance, provider, updates, commands, report }
+  }
+
+  it('reports heading as auto', async () => {
+    const { instance, updates, report } = start()
+    try {
+      report('heading')
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(updates).to.deep.equal([{ state: 'auto', engaged: true }])
+    } finally {
+      instance.stop()
+    }
+  })
+
+  it('takes heading as auto', async () => {
+    const { instance, provider, commands } = start()
+    try {
+      // Resolves once the pilot reports the state, as an older n2k-signalk
+      // writes it.
+      await provider.setState('heading')
+      expect(commands).to.deep.equal(['Heading mode'])
+    } finally {
+      instance.stop()
+    }
+  })
+
+  it('still refuses a state it does not have', async () => {
+    const { instance, provider } = start()
+    try {
+      let error: Error | undefined
+      await provider.setState('track').catch((e: Error) => {
+        error = e
+      })
+      expect(error?.message).to.equal('track is not a valid value!')
+    } finally {
+      instance.stop()
+    }
   })
 })
