@@ -67,10 +67,13 @@ var confirmScreenDiv = undefined;
 var remoteHelpDiv = undefined;
 var remoteMainDiv = undefined;
 var mainDiv = undefined;
+var targetValueDiv = undefined;
 var skPathToAck = '';
 var actionToBeConfirmed = '';
 var countDownValue = 0;
 var pilotStatus = '';
+var windTarget = '';
+var windTargetTimeout = null;
 
 var displayByPathParams = {
   'navigation.headingMagnetic': {
@@ -138,6 +141,7 @@ export function startUpAutoPilot() {
   remoteHelpDiv = document.getElementById('remoteHelp');
   remoteMainDiv = document.getElementById('remoteMain');
   mainDiv = document.getElementById('main');
+  targetValueDiv = document.getElementById('targetValue');
 
   remoteMainDiv.style.visibility = 'visible';
   remoteMainDiv.style.display = 'block';
@@ -413,6 +417,11 @@ var wsConnect = function () {
               "path": "steering.autopilot.target.headingMagnetic",
               "format": "delta",
               "minPeriod": 900
+            },
+            {
+              "path": "steering.autopilot.target.windAngleApparent",
+              "format": "delta",
+              "minPeriod": 900
             }
           ]
         };
@@ -477,6 +486,8 @@ var dispatchMessages = function (jsonData) {
               setPilotStatus('');
             }, timeoutValue);
             setPilotStatus(value.value);
+          } else if (value.path === "steering.autopilot.target.windAngleApparent") {
+            setWindTarget(value.value);
           } else if (value.path.startsWith("notifications.autopilot")) {
             setNotificationMessage(value);
           } else {
@@ -525,6 +536,29 @@ var setHeadindValue = function (value) {
   }
 }
 
+// Locked apparent-wind target (steering.autopilot.target.windAngleApparent). In wind
+// mode the main value shows the live AWA/TWA, so the locked datum the pilot holds is
+// not visible otherwise. Shown on the bottom line; signed degrees like the AWA reading.
+var setWindTarget = function (value) {
+  windTarget = ((typeof value !== 'number') || isNaN(value)) ? '' : Math.round(value * (180 / Math.PI)) + '&deg;';
+  clearTimeout(windTargetTimeout);
+  windTargetTimeout = setTimeout(() => { windTarget = ''; renderTargetLine(); }, timeoutValue);
+  renderTargetLine();
+}
+
+// Show the target only in wind mode, and let an active alarm take the bottom line
+// (backdown) -- the alarm message reuses the same row, in red.
+var renderTargetLine = function () {
+  var alarmActive = Object.keys(notificationsArray).length > 0;
+  if ((pilotStatus === 'wind') && (windTarget !== '') && !alarmActive) {
+    targetValueDiv.innerHTML = 'TGT ' + windTarget;
+    targetValueDiv.style.visibility = 'visible';
+  } else {
+    targetValueDiv.innerHTML = '';
+    targetValueDiv.style.visibility = 'hidden';
+  }
+}
+
 var setPilotStatus = function (value) {
   pilotStatus = (typeof value !== 'undefined') ? value : '';
   if (pilotStatus !== '') {
@@ -542,6 +576,7 @@ var setPilotStatus = function (value) {
       pilotStatusDiv.innerHTML = value;
     }
   }
+  renderTargetLine();
 }
 
 var setNotificationMessage = function (value) {
@@ -573,6 +608,7 @@ var setNotificationMessage = function (value) {
     bottomBarIconDiv.style.visibility = 'hidden';
     bottomBarIconDiv.innerHTML = '';
   }
+  renderTargetLine();
 }
 
 export function displayHelp() {
@@ -630,6 +666,12 @@ var cleanOnClosed = function () {
     displayByPathParams[path].value = '';
   });
   clearTimeout(handlePilotStatusTimeout);
+  clearTimeout(windTargetTimeout);
+  windTarget = '';
+  if (typeof targetValueDiv !== 'undefined') {
+    targetValueDiv.innerHTML = '';
+    targetValueDiv.style.visibility = 'hidden';
+  }
   pilotStatusDiv.innerHTML = noData;
   headingValueDiv.innerHTML = noData;
 }
