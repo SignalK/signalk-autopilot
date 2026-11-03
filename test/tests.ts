@@ -141,7 +141,7 @@ Object.entries(types).forEach(([name, type]) => {
                 manufacturerCode: 'Simrad',
                 industryCode: 'Marine Industry',
                 commandType: 'AP Command',
-                event: 'No Drift mode',
+                event: 'Heading mode',
                 address: 3,
                 reserved5: 0
               }
@@ -696,6 +696,103 @@ Object.entries(types).forEach(([name, type]) => {
         expect(res.statusCode).to.equal(200)
         done()
       }
+    })
+  })
+})
+
+// Simnet's Heading mode is the specification's auto and No Drift is
+// noDrift; n2k-signalk before SignalK/n2k-signalk#392 wrote them as heading
+// and auto.
+describe('test simrad autopilot states', function () {
+  const command = (event: string, state: string): ExpectedEvent => ({
+    event: 'nmea2000JsonOut',
+    value: {
+      description: undefined,
+      pgn: 130850,
+      prio: 2,
+      dst: 255,
+      input: undefined,
+      src: undefined,
+      timestamp: undefined,
+      fields: {
+        manufacturerCode: 'Simrad',
+        industryCode: 'Marine Industry',
+        commandType: 'AP Command',
+        event,
+        address: 3,
+        reserved5: 0
+      }
+    },
+    generates: [{ path: 'steering.autopilot.state', value: state }]
+  })
+
+  // Sets `state`, which the pilot then reports as `reported`.
+  const putState = (
+    state: string,
+    event: string,
+    reported: string,
+    done: Mocha.Done
+  ) => {
+    const app = new TestApp([command(event, reported)])
+    const autopilot: Autopilot = types.simrad(app)
+    autopilot.start({})
+    const res = autopilot.putState(undefined, undefined, state, (res: any) => {
+      expect(res.statusCode).to.equal(200)
+      done()
+    })
+    expect(res.state).to.equal('PENDING')
+  }
+
+  it('lists the specification states', () => {
+    const autopilot: Autopilot = types.simrad(new TestApp([]))
+    expect(autopilot.states().map((s) => s.name)).to.deep.equal([
+      'standby',
+      'auto',
+      'noDrift',
+      'wind',
+      'route'
+    ])
+  })
+
+  it('sets noDrift with the No Drift command', (done) => {
+    putState('noDrift', 'No Drift mode', 'noDrift', done)
+  })
+
+  it('takes heading as auto', (done) => {
+    putState('heading', 'Heading mode', 'auto', done)
+  })
+
+  it('confirms auto by what an older n2k-signalk writes', (done) => {
+    putState('auto', 'Heading mode', 'heading', done)
+  })
+
+  it('confirms noDrift by what an older n2k-signalk writes', (done) => {
+    putState('noDrift', 'No Drift mode', 'auto', done)
+  })
+  ;['auto', 'noDrift', 'wind', 'heading'].forEach((state) => {
+    it(`adjusts the heading and tacks in ${state}`, () => {
+      const app = new TestApp([], { 'steering.autopilot.state.value': state })
+      const autopilot: Autopilot = types.simrad(app)
+      autopilot.start({})
+      expect(
+        autopilot.putAdjustHeading(undefined, undefined, 1, () => {}).statusCode
+      ).to.equal(200)
+      expect(
+        autopilot.putTack(undefined, undefined, 'port', () => {}).statusCode
+      ).to.equal(200)
+    })
+  })
+  ;['standby', 'route'].forEach((state) => {
+    it(`refuses to adjust the heading or tack in ${state}`, () => {
+      const app = new TestApp([], { 'steering.autopilot.state.value': state })
+      const autopilot: Autopilot = types.simrad(app)
+      autopilot.start({})
+      expect(
+        autopilot.putAdjustHeading(undefined, undefined, 1, () => {}).statusCode
+      ).to.equal(400)
+      expect(
+        autopilot.putTack(undefined, undefined, 'port', () => {}).statusCode
+      ).to.equal(400)
     })
   })
 })

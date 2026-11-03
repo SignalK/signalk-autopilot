@@ -45,15 +45,35 @@ const start_follow_up_command =
   '%s,2,130850,%s,255,12,41,9f,%s,ff,ff,02,0E,00,ff,ff,ff,ff'
 */
 
+// The specification's autopilot states: auto holds a heading (Simnet's
+// Heading mode), noDrift is Simnet's No Drift.
 const states = [
   { name: 'standby', engaged: false },
   { name: 'auto', engaged: true },
+  { name: 'noDrift', engaged: true },
   { name: 'wind', engaged: true },
-  { name: 'route', engaged: true },
-  { name: 'heading', engaged: true }
+  { name: 'route', engaged: true }
   //{ name: 'followUp', engaged: true },
   //{ name: 'nonFollowUp', engaged: true }
 ]
+
+// n2k-signalk before SignalK/n2k-signalk#392 writes Simnet's Heading mode as
+// heading and No Drift as auto; later versions write auto and noDrift.
+const LEGACY_STATES: { [state: string]: string } = {
+  auto: 'heading',
+  noDrift: 'auto'
+}
+
+// The states a state change is confirmed by: the state itself, or what an
+// older n2k-signalk writes for it.
+function reportedAs(state: string): string[] {
+  const legacy = LEGACY_STATES[state]
+  return legacy ? [state, legacy] : [state]
+}
+
+// The states that hold a course, as either n2k-signalk writes them: the
+// heading can be adjusted and the boat tacked.
+const HOLDING_STATES = ['auto', 'noDrift', 'wind', 'heading']
 
 export default function (app: any): Autopilot {
   const defaultDeviceid: number = 3
@@ -103,6 +123,11 @@ export default function (app: any): Autopilot {
       toActionPromise((cb) => pilot.putState(undefined, undefined, value, cb)),
 
     putState: (context: string, path: string, value: any, cb: any) => {
+      // heading was this provider's name for auto, before it followed the
+      // specification.
+      if (value === 'heading') {
+        value = 'auto'
+      }
       if (!states.find((s) => s.name === value)) {
         return { message: `Invalid Autopilot State: ${value}`, ...FAILURE_RES }
       } else {
@@ -129,7 +154,7 @@ export default function (app: any): Autopilot {
           let pgn: PGN
 
           switch (value) {
-            case 'auto':
+            case 'noDrift':
               pgn = new PGN_130850_SimnetCommandApNodrift({
                 address: pilot.id,
                 reserved5: 0
@@ -141,7 +166,7 @@ export default function (app: any): Autopilot {
                 reserved5: 0
               })
               break
-            case 'heading':
+            case 'auto':
               pgn = new PGN_130850_SimnetCommandApHeading({
                 address: pilot.id,
                 reserved5: 0
@@ -165,7 +190,7 @@ export default function (app: any): Autopilot {
           sendN2k([pgn])
         }
 
-        verifyChange(app, state_path, value, cb)
+        verifyChange(app, state_path, reportedAs(value), cb)
         return PENDING_RES
       }
     },
@@ -187,9 +212,9 @@ export default function (app: any): Autopilot {
     putAdjustHeading: (context: string, path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'auto' && state !== 'heading' && state !== 'wind') {
+      if (!HOLDING_STATES.includes(state)) {
         return {
-          message: 'Autopilot not in auto, heading or wind mode',
+          message: 'Autopilot not in auto, noDrift or wind mode',
           ...FAILURE_RES
         }
       } else {
@@ -212,8 +237,11 @@ export default function (app: any): Autopilot {
     putTack: (_context: string, _path: string, _value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'wind' && state !== 'auto') {
-        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      if (!HOLDING_STATES.includes(state)) {
+        return {
+          message: 'Autopilot not in auto, noDrift or wind mode',
+          ...FAILURE_RES
+        }
       } else {
         sendN2k([
           new PGN_130850_SimnetCommandApTack({
@@ -333,12 +361,14 @@ function verifyChange(
   expected: any,
   cb: (res: any) => void
 ) {
+  // One value, or several that each confirm the change.
+  const accepted = Array.isArray(expected) ? expected : [expected]
   let retryCount = 0
   const interval = setInterval(() => {
     const val = app.getSelfPath(path)
     //app.debug('checking %s %j should be %j', path, val, expected)
 
-    if (val !== undefined && val === expected) {
+    if (val !== undefined && accepted.includes(val)) {
       app.debug('SUCCESS')
       cb(SUCCESS_RES)
       clearInterval(interval)
@@ -351,7 +381,7 @@ function verifyChange(
         const res = {
           message:
             message ||
-            `Did not receive change confirmation ${val} != ${expected}`,
+            `Did not receive change confirmation ${val} != ${accepted.join(' or ')}`,
           ...FAILURE_RES
         }
         cb(res)
