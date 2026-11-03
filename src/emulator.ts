@@ -19,6 +19,13 @@ import { toActionPromise } from './actionPromise'
 import { ActionResult } from '@signalk/server-api'
 
 const state_path = 'steering.autopilot.state.value'
+const routeTrackTruePath = 'navigation.course.calcValues.bearingTrackTrue.value'
+const routeTrackMagneticPath =
+  'navigation.course.calcValues.bearingTrackMagnetic.value'
+const routeXtePath = 'navigation.course.calcValues.crossTrackError.value'
+const magneticVariationPath = 'navigation.magneticVariation.value'
+const defaultRouteXteLookahead = 100
+const defaultRouteMaxXteCorrection = 60
 
 const SUCCESS_RES = { state: 'COMPLETED', statusCode: 200 } as ActionResult
 const FAILURE_RES = { state: 'COMPLETED', statusCode: 400 } as ActionResult
@@ -29,32 +36,52 @@ export default function (app: any): Autopilot {
   let currentState = 'standby'
   let currentTarget: any = undefined
   let stateInterval: any
+  let routeXteLookahead = defaultRouteXteLookahead
+  let routeMaxXteCorrection = degsToRad(defaultRouteMaxXteCorrection)
 
   const pilot: Autopilot = {
     id: 10,
-    start: (_props) => {
+    start: (props) => {
+      routeXteLookahead =
+        positiveFinite(props?.routeXteLookahead) || defaultRouteXteLookahead
+      routeMaxXteCorrection = degsToRad(
+        positiveFinite(props?.routeMaxXteCorrection) ||
+          defaultRouteMaxXteCorrection
+      )
+
       stateInterval = setInterval(() => {
-        const delta = {
-          updates: [
-            {
-              values: [
-                { path: 'steering.autopilot.state', value: currentState }
-              ]
-            }
-          ]
+        let routeDataLost = false
+        if (currentState === 'route') {
+          currentTarget = getRouteTargetHeading()
+          if (currentTarget === undefined) {
+            currentState = 'standby'
+            routeDataLost = true
+          }
         }
-        if (currentState === 'auto' && currentTarget !== undefined) {
-          delta.updates[0].values.push({
+
+        const values: { path: string; value: string | number | null }[] = [
+          { path: 'steering.autopilot.state', value: currentState }
+        ]
+        if (routeDataLost) {
+          values.push({
+            path: 'steering.autopilot.target.headingMagnetic',
+            value: null
+          })
+        } else if (
+          (currentState === 'auto' || currentState === 'route') &&
+          currentTarget !== undefined
+        ) {
+          values.push({
             path: 'steering.autopilot.target.headingMagnetic',
             value: currentTarget
           })
         } else if (currentState === 'wind' && currentTarget !== undefined) {
-          delta.updates[0].values.push({
+          values.push({
             path: 'steering.autopilot.target.windAngleApparent',
             value: currentTarget
           })
         }
-        app.handleMessage(source, delta)
+        app.handleMessage(source, { updates: [{ values }] })
       }, 1000)
     },
 
@@ -116,6 +143,20 @@ export default function (app: any): Autopilot {
           path: 'steering.autopilot.target.windAngleApparent',
           value: windAngle
         })
+      } else if (value === 'route') {
+        const heading = getRouteTargetHeading()
+        if (heading === undefined) {
+          return {
+            message:
+              'Route mode requires a magnetic track bearing (direct or converted from true) and cross-track error',
+            ...FAILURE_RES
+          }
+        }
+        currentTarget = heading
+        delta.updates[0].values.push({
+          path: 'steering.autopilot.target.headingMagnetic',
+          value: heading
+        })
       }
 
       currentState = value
@@ -129,8 +170,34 @@ export default function (app: any): Autopilot {
         pilot.putTargetWind(undefined, undefined, value, cb)
       ),
 
-    putTargetWind: (_context: string, _path: string, _value: any, _cb: any) => {
-      return { message: 'Unsupported', ...FAILURE_RES }
+    putTargetWind: (_context: string, _path: string, value: any, _cb: any) => {
+      const state = app.getSelfPath(state_path)
+      const targetDegrees = Number(value)
+
+      if (state !== 'wind') {
+        return { message: 'Autopilot not in wind mode', ...FAILURE_RES }
+      }
+      if (!Number.isFinite(targetDegrees)) {
+        return { message: 'Invalid wind target', ...FAILURE_RES }
+      }
+
+      const newTarget = degsToRad(targetDegrees)
+      currentTarget = newTarget
+
+      app.handleMessage(source, {
+        updates: [
+          {
+            values: [
+              {
+                path: 'steering.autopilot.target.windAngleApparent',
+                value: newTarget
+              }
+            ]
+          }
+        ]
+      })
+
+      return SUCCESS_RES
     },
 
     putAdjustHeadingPromise: (value: number) =>
@@ -200,30 +267,35 @@ export default function (app: any): Autopilot {
     putTack: (_context: string, _path: string, value: any, _cb: any) => {
       const state = app.getSelfPath(state_path)
 
-      if (state !== 'wind' && state !== 'auto') {
-        return { message: 'Autopilot not in wind or auto mode', ...FAILURE_RES }
+      if (state !== 'wind') {
+        return { message: 'Autopilot not in wind mode', ...FAILURE_RES }
+      }
+      if (value !== 'port' && value !== 'starboard') {
+        return { message: 'Unsupported tack direction', ...FAILURE_RES }
       }
 
-      // Simulate by reflecting the apparent wind target across 0 — emulates
-      // the boat coming through head-to-wind onto the opposite tack.
-      if (state === 'wind' && currentTarget !== undefined) {
-        currentTarget = -currentTarget
-        app.handleMessage(source, {
-          updates: [
-            {
-              values: [
-                {
-                  path: 'steering.autopilot.target.windAngleApparent',
-                  value: currentTarget
-                }
-              ]
-            }
-          ]
-        })
-      }
+      const target = app.getSelfPath(
+        'steering.autopilot.target.windAngleApparent.value'
+      )
+      const reference = Number.isFinite(target)
+        ? target
+        : app.getSelfPath('environment.wind.angleApparent.value')
+      const newTarget = (value === 'port' ? -1 : 1) * Math.abs(reference || 0)
+      currentTarget = newTarget
 
-      // Direction is informational for emulation; the math is symmetric.
-      void value
+      app.handleMessage(source, {
+        updates: [
+          {
+            values: [
+              {
+                path: 'steering.autopilot.target.windAngleApparent',
+                value: newTarget
+              }
+            ]
+          }
+        ]
+      })
+
       return SUCCESS_RES
     },
 
@@ -250,13 +322,78 @@ export default function (app: any): Autopilot {
     },
 
     properties: () => {
-      return {}
+      return {
+        routeXteLookahead: {
+          type: 'number',
+          title: 'Emulator route XTE lookahead distance',
+          description:
+            'Lookahead distance along the track, in meters. An equal cross-track error gives a 45 degree correction before applying the maximum correction limit.',
+          default: defaultRouteXteLookahead
+        },
+        routeMaxXteCorrection: {
+          type: 'number',
+          title: 'Emulator route maximum XTE correction',
+          description:
+            'Maximum heading correction applied in route mode, in degrees.',
+          default: defaultRouteMaxXteCorrection
+        }
+      }
     }
   }
 
   return pilot
+
+  function getRouteTargetHeading() {
+    const xte = app.getSelfPath(routeXtePath)
+    if (!Number.isFinite(xte)) {
+      return undefined
+    }
+
+    const trackHeadingTrue = app.getSelfPath(routeTrackTruePath)
+    const magneticVariation = app.getSelfPath(magneticVariationPath)
+    if (
+      Number.isFinite(trackHeadingTrue) &&
+      Number.isFinite(magneticVariation)
+    ) {
+      return trueHeadingToMagnetic(
+        correctedRouteHeading(trackHeadingTrue, xte),
+        magneticVariation
+      )
+    }
+
+    const trackHeadingMagnetic = app.getSelfPath(routeTrackMagneticPath)
+    if (Number.isFinite(trackHeadingMagnetic)) {
+      return correctedRouteHeading(trackHeadingMagnetic, xte)
+    }
+    return undefined
+  }
+
+  function correctedRouteHeading(trackHeading: number, xte: number) {
+    const correction = clamp(
+      -Math.atan(xte / routeXteLookahead),
+      -routeMaxXteCorrection,
+      routeMaxXteCorrection
+    )
+    return compassAngle(trackHeading + correction)
+  }
 }
 
 function degsToRad(degrees: number) {
   return degrees * (Math.PI / 180.0)
+}
+
+function trueHeadingToMagnetic(headingTrue: number, magneticVariation: number) {
+  return compassAngle(headingTrue - magneticVariation)
+}
+
+function compassAngle(angle: number) {
+  return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function positiveFinite(value: any) {
+  return Number.isFinite(value) && value > 0 ? value : undefined
 }

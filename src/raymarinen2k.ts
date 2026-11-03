@@ -346,7 +346,12 @@ export default function (app: any): Autopilot {
       if (state !== 'wind') {
         return { message: 'Autopilot not in wind vane mode', ...FAILURE_RES }
       } else {
-        const new_value = Math.trunc(value * 10000)
+        // Wind Datum (PGN 65345) is an unsigned angle in 0.0001 rad: a port
+        // angle goes out as its starboard equivalent, -30 as 330.
+        const radians = degsToRad(value)
+        const new_value = Math.round(
+          (((radians % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) * 10000
+        )
         const msg = util.format(
           wind_direction_command,
           new Date().toISOString(),

@@ -19,6 +19,32 @@ import { types, Autopilot } from '../dist/index'
 import { TestApp, ExpectedEvent } from './utils'
 
 describe('test emulator autopilot', function () {
+  it('uses cross-track error to correct route target heading', () => {
+    const app = new TestApp([], {
+      'navigation.course.calcValues.bearingTrackTrue.value': Math.PI / 2,
+      'navigation.magneticVariation.value': Math.PI / 18,
+      'navigation.course.calcValues.crossTrackError.value': 500
+    })
+
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({ routeXteLookahead: 500, routeMaxXteCorrection: 45 })
+
+    try {
+      autopilot.putState(undefined, undefined, 'route')
+      expect(
+        app.getSelfPath('steering.autopilot.target.headingMagnetic.value')
+      ).to.be.closeTo((7 * Math.PI) / 36, 0.000001)
+
+      app.paths['navigation.course.calcValues.crossTrackError.value'] = -500
+      autopilot.putState(undefined, undefined, 'route')
+      expect(
+        app.getSelfPath('steering.autopilot.target.headingMagnetic.value')
+      ).to.be.closeTo((25 * Math.PI) / 36, 0.000001)
+    } finally {
+      autopilot.stop()
+    }
+  })
+
   it('exposes route as an available mode', () => {
     const app = new TestApp([])
     const autopilot: Autopilot = types.emulator(app)
@@ -28,6 +54,25 @@ describe('test emulator autopilot', function () {
       expect(autopilot.modes?.()).to.deep.equal(['auto', 'wind', 'route'])
       const stateNames = autopilot.states?.().map((s) => s.name)
       expect(stateNames).to.include('route')
+    } finally {
+      autopilot.stop()
+    }
+  })
+
+  it('sets the absolute apparent wind target in wind mode', () => {
+    const app = new TestApp([], {
+      'steering.autopilot.state.value': 'wind'
+    })
+
+    const autopilot: Autopilot = types.emulator(app)
+    autopilot.start({})
+
+    try {
+      const res = autopilot.putTargetWind(undefined, undefined, -30)
+      expect(res.statusCode).to.equal(200)
+      expect(
+        app.getSelfPath('steering.autopilot.target.windAngleApparent.value')
+      ).to.be.closeTo(-Math.PI / 6, 0.000001)
     } finally {
       autopilot.stop()
     }
@@ -140,7 +185,6 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Simrad',
                 industryCode: 'Marine Industry',
-                proprietaryId: 'Autopilot',
                 commandType: 'AP Command',
                 event: 'No Drift mode',
                 address: 3,
@@ -285,7 +329,7 @@ Object.entries(types).forEach(([name, type]) => {
           {
             event: 'nmea2000out',
             value:
-              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,e0,93/,
+              /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,3,126208,1,204,14,01,41,ff,00,f8,03,01,3b,07,03,04,04,74,14/,
             generates: [
               {
                 path: 'steering.autopilot.target.windAngleApparent',
@@ -377,7 +421,6 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Simrad',
                 industryCode: 'Marine Industry',
-                proprietaryId: 'Autopilot',
                 event: 'Change course',
                 address: 3,
                 commandType: 'AP Command',
@@ -469,7 +512,6 @@ Object.entries(types).forEach(([name, type]) => {
               fields: {
                 manufacturerCode: 'Simrad',
                 industryCode: 'Marine Industry',
-                proprietaryId: 'Autopilot',
                 commandType: 'AP Command',
                 event: 'Tack',
                 address: 3,
