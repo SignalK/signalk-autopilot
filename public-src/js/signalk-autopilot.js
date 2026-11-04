@@ -546,9 +546,10 @@ var setPilotStatus = function (value) {
     setHeadindValue('');
     pilotStatusDiv.innerHTML = noPilot;
   } else {
-    if (pilotStatusDiv.innerHTML !== value) {
+    // As text: the state comes from a delta, and is shown as it is.
+    if (pilotStatusDiv.textContent !== value) {
       setHeadindValue('');
-      pilotStatusDiv.innerHTML = value;
+      pilotStatusDiv.textContent = value;
     }
   }
 }
