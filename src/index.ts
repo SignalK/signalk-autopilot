@@ -67,6 +67,11 @@ export interface Autopilot {
   start(props: any): void
   stop(): void
   states?(): { name: string; engaged: boolean }[]
+  /**
+   * The listed state a value names, for a provider that also takes or
+   * reports other names for its states.
+   */
+  normalizeState?(value: string): string
   modes?(): string[]
   putState(
     context: string | undefined,
@@ -132,6 +137,8 @@ export default function (app: any) {
   const pilots: { [key: string]: Autopilot } = {}
   let apType = '' // autopilot type
   let lastState: string | undefined = undefined
+  const normalizeState = (value: string) =>
+    autopilot.normalizeState ? autopilot.normalizeState(value) : value
 
   Object.keys(types).forEach((type) => {
     const module = types[type]
@@ -279,6 +286,7 @@ export default function (app: any) {
           return apData.state as string
         },
         setState: async (state, _deviceId) => {
+          state = normalizeState(state)
           if (isValidState(state)) {
             return autopilot.putStatePromise(state)
           } else {
@@ -387,11 +395,10 @@ export default function (app: any) {
 
             // map n2k device state to API.state & API.mode
             if (pathValue.path === 'steering.autopilot.state') {
-              apData.state = isValidState(pathValue.value)
-                ? pathValue.value
-                : null
+              const state = normalizeState(pathValue.value)
+              apData.state = isValidState(state) ? state : null
               const stateObj = apData.options.states.find(
-                (i) => i.name === pathValue.value
+                (i) => i.name === state
               )
               apData.engaged = stateObj ? stateObj.engaged : false
               app.autopilotUpdate(apType, {

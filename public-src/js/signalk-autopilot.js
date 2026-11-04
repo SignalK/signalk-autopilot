@@ -117,6 +117,13 @@ const defaultPpreferedDisplayMode = {
 
 var preferedDisplayMode = defaultPpreferedDisplayMode;
 
+// The state whose display settings a pilot state uses: noDrift (Simrad's No
+// Drift) and heading (what an older n2k-signalk writes for Simrad's Heading
+// mode) hold a heading, as auto does.
+var displayMode = function () {
+  return (pilotStatus === 'noDrift' || pilotStatus === 'heading') ? 'auto' : pilotStatus;
+}
+
 const originalElementsSize = {
   'remoteMain': { width: 238, heigth: 612 },
   'remoteHelp': { width: 633, heigth: 693 }
@@ -306,20 +313,20 @@ var getNextNotification = function (skPath) {
 }
 
 export function changePreferedDisplayMode() {
-  const currentPreferedDisplayMode = preferedDisplayMode[pilotStatus];
+  const currentPreferedDisplayMode = preferedDisplayMode[displayMode()];
   var pathForPilotStatus = [];
   if (typeof currentPreferedDisplayMode === 'undefined') { return null }
   for (let [key, value] of Object.entries(displayByPathParams)) {
-    if ((typeof value.usage === 'object') && value.usage.includes(pilotStatus)) {
+    if ((typeof value.usage === 'object') && value.usage.includes(displayMode())) {
       pathForPilotStatus.push(key);
     }
   }
   const currentIndex = pathForPilotStatus.indexOf(currentPreferedDisplayMode);
   const nextIndex = (currentIndex + 1) % pathForPilotStatus.length;
-  preferedDisplayMode[pilotStatus] = pathForPilotStatus[nextIndex];
+  preferedDisplayMode[displayMode()] = pathForPilotStatus[nextIndex];
   localStorage.setItem('signalk-autopilot', JSON.stringify({ preferedDisplayMode: preferedDisplayMode }));
-  setHeadindValue(displayByPathParams[preferedDisplayMode[pilotStatus]].value);
-  typeValIconDiv.innerHTML = displayByPathParams[preferedDisplayMode[pilotStatus]].typeVal;
+  setHeadindValue(displayByPathParams[preferedDisplayMode[displayMode()]].value);
+  typeValIconDiv.innerHTML = displayByPathParams[preferedDisplayMode[displayMode()]].typeVal;
 }
 
 var confirmTack = function (cmd) {
@@ -513,12 +520,12 @@ var buildHeadindValue = function (path, value) {
   displayByPathParam.handleTimeout = setTimeout(() => {
     console.log('timeout:{' + pilotStatus + '}[' + path + ']' + displayByPathParams[path].value);
     displayByPathParams[path].value = '';
-    if (preferedDisplayMode[pilotStatus] == path) {
+    if (preferedDisplayMode[displayMode()] == path) {
       setHeadindValue('');
     }
   }, timeoutValue, path);
 
-  if (preferedDisplayMode[pilotStatus] == path) {
+  if (preferedDisplayMode[displayMode()] == path) {
     if (typeValIconDiv.innerHTML !== displayByPathParam.typeVal) {
       typeValIconDiv.innerHTML = displayByPathParam.typeVal;
     }
@@ -562,7 +569,9 @@ var renderTargetLine = function () {
 var setPilotStatus = function (value) {
   pilotStatus = (typeof value !== 'undefined') ? value : '';
   if (pilotStatus !== '') {
-    var typeVal = displayByPathParams[preferedDisplayMode[pilotStatus]].typeVal;
+    // A state without display settings shows no type, instead of throwing.
+    var displayByPathParam = displayByPathParams[preferedDisplayMode[displayMode()]];
+    var typeVal = displayByPathParam ? displayByPathParam.typeVal : '';
     if (typeValIconDiv.innerHTML !== typeVal)
       typeValIconDiv.innerHTML = typeVal;
   } else { typeValIconDiv.innerHTML = '' }
@@ -571,9 +580,10 @@ var setPilotStatus = function (value) {
     setHeadindValue('');
     pilotStatusDiv.innerHTML = noPilot;
   } else {
-    if (pilotStatusDiv.innerHTML !== value) {
+    // As text: the state comes from a delta, and is shown as it is.
+    if (pilotStatusDiv.textContent !== value) {
       setHeadindValue('');
-      pilotStatusDiv.innerHTML = value;
+      pilotStatusDiv.textContent = value;
     }
   }
   renderTargetLine();
