@@ -329,6 +329,8 @@ function connect() {
     }));
     subscribe.push({ path: 'notifications.autopilot.*', format: 'delta', minPeriod: 200 });
     ws.send(JSON.stringify({ context: 'vessels.self', subscribe }));
+    // The pilot may have changed while the page was away.
+    loadPilot();
   };
   ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
   ws.onclose = () => {
@@ -338,26 +340,48 @@ function connect() {
   ws.onerror = () => ws && ws.close();
 }
 
-// The default pilot and the states it offers, from the Autopilot API when it
-// is there.
+// The keys go to this plugin's PUT handlers, so the state shown is that of
+// the Autopilot API device this plugin registers (its provider is the plugin
+// id), whether or not it is the API's default pilot. Without such a device
+// the pilot's own state is shown.
+const PLUGIN_ID = 'autopilot';
+
+function usePilot(id) {
+  if (id !== pilotSource) {
+    pilotSource = id;
+    // A state seen from the previous pilot no longer says anything.
+    delete values['steering.autopilot.state'];
+    render();
+  }
+}
+
+// Only the latest lookup counts: one still running from an earlier
+// connection must not undo a newer one.
+let pilotLookup = 0;
+
 function loadPilot() {
+  const lookup = ++pilotLookup;
   fetch('/signalk/v2/api/vessels/self/autopilots', { credentials: 'include' })
     .then((res) => (res.ok ? res.json() : undefined))
     .then((pilots) => {
-      const id = pilots && Object.keys(pilots).find((key) => pilots[key].isDefault);
-      if (id) {
-        pilotSource = id;
+      if (lookup !== pilotLookup) {
+        return undefined;
       }
-    })
-    .catch(() => { });
-  fetch('/signalk/v2/api/vessels/self/autopilots/_default', { credentials: 'include' })
-    .then((res) => (res.ok ? res.json() : undefined))
-    .then((info) => {
-      const list = info && info.options && info.options.states;
-      if (Array.isArray(list) && list.length > 0) {
-        states = list.map((s) => s.name);
-        render();
+      const ids = pilots ? Object.keys(pilots).filter((key) => pilots[key].provider === PLUGIN_ID) : [];
+      const id = ids.find((key) => pilots[key].isDefault) || ids[0];
+      usePilot(id || null);
+      if (!id) {
+        return undefined;
       }
+      return fetch('/signalk/v2/api/vessels/self/autopilots/' + encodeURIComponent(id), { credentials: 'include' })
+        .then((res) => (res.ok ? res.json() : undefined))
+        .then((info) => {
+          const list = info && info.options && info.options.states;
+          if (lookup === pilotLookup && Array.isArray(list) && list.length > 0) {
+            states = list.map((st) => st.name);
+            render();
+          }
+        });
     })
     .catch(() => { });
 }
@@ -376,7 +400,6 @@ export function start() {
   el.alarm.addEventListener('click', silence);
   render();
   setInterval(render, 1000);
-  loadPilot();
   connect();
 }
 
