@@ -40,6 +40,9 @@ jspm_packages
 public/index.html
 public/signalk-autopilot.min.js
 public/signalk-autopilot.min.js.map
+public/keypad.html
+public/keypad.min.js
+public/keypad.min.js.map
 *.tgz
 dist/
 tsconfig.tsbuildinfo

@@ -7,6 +7,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/png" href="favicon.ico">
   <link rel="preload" as="image" href="./img/bgRemoteMain.png">
+  <script>
+    // Show the design chosen in the plugin settings, or the one named by
+    // ?design= in the address.
+    (function () {
+      var design = new URLSearchParams(window.location.search).get('design');
+      var settled = false;
+      var show = function (name) {
+        // Only the first answer counts: the response or the fallback.
+        if (settled) {
+          return false;
+        }
+        settled = true;
+        if (name === 'keypad') {
+          window.location.replace('keypad.html' + window.location.search);
+          return true;
+        }
+        document.documentElement.style.visibility = '';
+        return false;
+      };
+      if (design) {
+        show(design);
+        return;
+      }
+      document.documentElement.style.visibility = 'hidden';
+      var fallback = setTimeout(function () { show('classic'); }, 2000);
+      fetch('/plugins/autopilot/webapp-design', { credentials: 'include' })
+        .then(function (res) { return res.ok ? res.json() : {}; })
+        .then(function (res) { clearTimeout(fallback); show(res.design); })
+        .catch(function () { clearTimeout(fallback); show('classic'); });
+    })();
+  </script>
   <script src="signalk-autopilot.min.js"></script>
   <style>
     body,

@@ -137,6 +137,7 @@ export default function (app: any) {
   const pilots: { [key: string]: Autopilot } = {}
   let apType = '' // autopilot type
   let lastState: string | undefined = undefined
+  let webappDesign = 'classic'
   const normalizeState = (value: string) =>
     autopilot.normalizeState ? autopilot.normalizeState(value) : value
 
@@ -154,6 +155,7 @@ export default function (app: any) {
 
   plugin.start = function (props: any) {
     apType = props.type
+    webappDesign = props.webappDesign === 'keypad' ? 'keypad' : 'classic'
     autopilot = pilots[props.type]
     autopilot.start(props)
 
@@ -259,6 +261,15 @@ export default function (app: any) {
           title: 'Enable Autopilot V2 API',
           description: 'Enables the Signal K Autopilot V2 API',
           default: true
+        },
+        webappDesign: {
+          type: 'string',
+          title: 'Webapp design',
+          description:
+            'The look of the autopilot webapp. Add ?design=classic or ?design=keypad to its address to try the other one.',
+          enum: ['classic', 'keypad'],
+          enumNames: ['Classic remote', 'Keypad with mode display'],
+          default: 'classic'
         }
       }
     }
@@ -269,6 +280,21 @@ export default function (app: any) {
       }
     })
     return config
+  }
+
+  // The webapp asks which design to show before it draws anything. Plugin
+  // routes are for admins unless a route says otherwise; servers that can
+  // open one to every logged-in user offer router.access. Where the webapp
+  // cannot read it, it shows the classic design.
+  plugin.registerWithRouter = function (router: any) {
+    const handler = (_req: any, res: any) => {
+      res.json({ design: webappDesign })
+    }
+    if (typeof router.access === 'function') {
+      router.access('readonly').get('/webapp-design', handler)
+    } else {
+      router.get('/webapp-design', handler)
+    }
   }
 
   // Autopilot API - register with Autopilot API
