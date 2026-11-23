@@ -49,6 +49,8 @@ let states = DEFAULT_STATES.slice();
 // the device as source; the pilot's own NMEA 2000 state may be named
 // differently, so only the API's is used when there is one.
 let pilotSource = null;
+// The sources seen reporting a state while there is no API device.
+const stateSources = new Set();
 let ws = null;
 let requestCounter = 0;
 let infoTimeout = null;
@@ -301,7 +303,14 @@ function handleMessage(msg) {
         }
       } else if (pv.path === 'steering.autopilot.state') {
         if (pilotSource === null) {
-          values[pv.path] = { value: LEGACY_STATES[pv.value] || pv.value, time: Date.now() };
+          // Without the API's device, a state is only shown while a single
+          // source reports one: with several, it is unknown whose it is.
+          stateSources.add(update.$source);
+          if (stateSources.size === 1) {
+            values[pv.path] = { value: LEGACY_STATES[pv.value] || pv.value, time: Date.now() };
+          } else {
+            delete values[pv.path];
+          }
         } else if (update.$source === pilotSource) {
           values[pv.path] = { value: pv.value, time: Date.now() };
         }
@@ -346,10 +355,18 @@ function connect() {
 // the pilot's own state is shown.
 const PLUGIN_ID = 'autopilot';
 
+const TARGET_PATHS = PATHS.filter((path) => path.startsWith('steering.autopilot.target.'));
+
 function usePilot(id) {
   if (id !== pilotSource) {
+    // What the previous pilot reported no longer says anything: its state,
+    // its modes and, when it was a known device, its targets.
+    if (pilotSource !== null) {
+      TARGET_PATHS.forEach((path) => delete values[path]);
+    }
     pilotSource = id;
-    // A state seen from the previous pilot no longer says anything.
+    stateSources.clear();
+    states = DEFAULT_STATES.slice();
     delete values['steering.autopilot.state'];
     render();
   }
