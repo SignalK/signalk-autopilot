@@ -393,15 +393,17 @@ function retryPilot(lookup) {
   }, RECONNECT_DELAY);
 }
 
+function readAnswer(res) {
+  if (res.status >= 500) {
+    throw new Error('Autopilot API ' + res.status);
+  }
+  return res.ok ? res.json() : undefined;
+}
+
 function loadPilot() {
   const lookup = ++pilotLookup;
   fetch('/signalk/v2/api/vessels/self/autopilots', { credentials: 'include' })
-    .then((res) => {
-      if (res.status >= 500) {
-        throw new Error('Autopilot API ' + res.status);
-      }
-      return res.ok ? res.json() : undefined;
-    })
+    .then(readAnswer)
     .then((pilots) => {
       if (lookup !== pilotLookup) {
         return undefined;
@@ -413,7 +415,7 @@ function loadPilot() {
         return undefined;
       }
       return fetch('/signalk/v2/api/vessels/self/autopilots/' + encodeURIComponent(id), { credentials: 'include' })
-        .then((res) => (res.ok ? res.json() : undefined))
+        .then(readAnswer)
         .then((info) => {
           const list = info && info.options && info.options.states;
           if (lookup === pilotLookup && Array.isArray(list) && list.length > 0) {
