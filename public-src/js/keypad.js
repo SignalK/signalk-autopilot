@@ -49,8 +49,8 @@ let states = DEFAULT_STATES.slice();
 // the device as source; the pilot's own NMEA 2000 state may be named
 // differently, so only the API's is used when there is one.
 let pilotSource = null;
-// The sources seen reporting a state while there is no API device.
-const stateSources = new Set();
+// When each source last reported a state while there is no API device.
+const stateSources = new Map();
 let ws = null;
 let requestCounter = 0;
 let infoTimeout = null;
@@ -305,7 +305,13 @@ function handleMessage(msg) {
         if (pilotSource === null) {
           // Without the API's device, a state is only shown while a single
           // source reports one: with several, it is unknown whose it is.
-          stateSources.add(update.$source);
+          const now = Date.now();
+          stateSources.set(update.$source, now);
+          stateSources.forEach((time, source) => {
+            if (now - time > VALUE_TIMEOUT) {
+              stateSources.delete(source);
+            }
+          });
           if (stateSources.size === 1) {
             values[pv.path] = { value: LEGACY_STATES[pv.value] || pv.value, time: Date.now() };
           } else {
@@ -339,6 +345,7 @@ function connect() {
     subscribe.push({ path: 'notifications.autopilot.*', format: 'delta', minPeriod: 200 });
     ws.send(JSON.stringify({ context: 'vessels.self', subscribe }));
     // The pilot may have changed while the page was away.
+    stateSources.clear();
     loadPilot();
   };
   ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
@@ -376,10 +383,25 @@ function usePilot(id) {
 // connection must not undo a newer one.
 let pilotLookup = 0;
 
+// A lookup that fails on the way (no answer, or a server error) is tried
+// again while the stream is open; an answer without devices is final.
+function retryPilot(lookup) {
+  setTimeout(() => {
+    if (lookup === pilotLookup && ws !== null && ws.readyState === WebSocket.OPEN) {
+      loadPilot();
+    }
+  }, RECONNECT_DELAY);
+}
+
 function loadPilot() {
   const lookup = ++pilotLookup;
   fetch('/signalk/v2/api/vessels/self/autopilots', { credentials: 'include' })
-    .then((res) => (res.ok ? res.json() : undefined))
+    .then((res) => {
+      if (res.status >= 500) {
+        throw new Error('Autopilot API ' + res.status);
+      }
+      return res.ok ? res.json() : undefined;
+    })
     .then((pilots) => {
       if (lookup !== pilotLookup) {
         return undefined;
@@ -400,7 +422,11 @@ function loadPilot() {
           }
         });
     })
-    .catch(() => { });
+    .catch(() => {
+      if (lookup === pilotLookup) {
+        retryPilot(lookup);
+      }
+    });
 }
 
 export function start() {
